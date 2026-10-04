@@ -20,12 +20,14 @@ describe("P0-02 provider safety", () => {
     });
     const provider = new FakeProvider();
     const service = new ProviderExecutionService(store, provider);
+    const persistedExecution = store.providerExecutions[0];
     const ctx = {
       tenantId: "tenant-a",
       workspaceId: "ws-a",
       jobId: job.jobId,
-      providerExecutionId: "pe-timeout",
-      providerRequestKey: "request-timeout",
+      providerExecutionId: persistedExecution.id,
+      providerRequestKey: persistedExecution.providerRequestKey,
+      providerModelId: persistedExecution.providerModelId,
     };
 
     await expect(service.submit(ctx, { scenario: "timeout" })).rejects.toMatchObject({
@@ -52,12 +54,14 @@ describe("P0-02 provider safety", () => {
     });
     const provider = new FakeProvider();
     const executionService = new ProviderExecutionService(store, provider);
+    const persistedExecution = store.providerExecutions[0];
     const ctx = {
       tenantId: "tenant-a",
       workspaceId: "ws-a",
       jobId: job.jobId,
-      providerExecutionId: "pe-success",
-      providerRequestKey: "request-success",
+      providerExecutionId: persistedExecution.id,
+      providerRequestKey: persistedExecution.providerRequestKey,
+      providerModelId: persistedExecution.providerModelId,
     };
     await executionService.submit(ctx, { scenario: "success" });
 
@@ -70,7 +74,7 @@ describe("P0-02 provider safety", () => {
     const poller = new ProviderPoller(executionService, queue);
     await expect(poller.poll({
       ctx,
-      providerJobId: "fake-request-success",
+      providerJobId: `fake-${persistedExecution.providerRequestKey}`,
       attempt: 0,
       subjectId: "subject-a",
       jobKind: "image",
@@ -93,12 +97,14 @@ describe("P0-02 provider safety", () => {
     });
     const provider = new FakeProvider();
     const executionService = new ProviderExecutionService(store, provider);
+    const persistedExecution = store.providerExecutions[0];
     const ctx = {
       tenantId: "tenant-a",
       workspaceId: "ws-a",
       jobId: job.jobId,
-      providerExecutionId: "pe-unknown",
-      providerRequestKey: "request-unknown",
+      providerExecutionId: persistedExecution.id,
+      providerRequestKey: persistedExecution.providerRequestKey,
+      providerModelId: persistedExecution.providerModelId,
     };
     await executionService.submit(ctx, { scenario: "unknown" });
 
@@ -111,7 +117,7 @@ describe("P0-02 provider safety", () => {
     const reconciler = new ProviderReconciler(executionService, queue);
     await expect(reconciler.reconcile({
       ctx,
-      providerJobId: "fake-request-unknown",
+      providerJobId: `fake-${persistedExecution.providerRequestKey}`,
       attempt: 0,
       subjectId: "subject-a",
       jobKind: "image",

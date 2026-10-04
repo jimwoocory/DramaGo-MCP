@@ -1,6 +1,7 @@
 import { createCipheriv, randomBytes } from "node:crypto";
 import { lookup } from "node:dns/promises";
 import { BlockList, isIP } from "node:net";
+import { GetSecretValueCommand, SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { DomainError } from "@xiaoshuren/contracts";
 
 export type AddressResolver = (hostname: string) => Promise<string[]>;
@@ -95,6 +96,21 @@ export type FetchedMedia = {
   mimeType?: string;
 };
 
+const hasPrefix = (body: Uint8Array, bytes: number[]): boolean =>
+  bytes.every((value, index) => body[index] === value);
+
+export const detectMediaMime = (body: Uint8Array): string | undefined => {
+  if (body.byteLength >= 8 && hasPrefix(body, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) return "image/png";
+  if (body.byteLength >= 3 && hasPrefix(body, [0xff, 0xd8, 0xff])) return "image/jpeg";
+  if (
+    body.byteLength >= 12 &&
+    String.fromCharCode(...body.slice(0, 4)) === "RIFF" &&
+    String.fromCharCode(...body.slice(8, 12)) === "WEBP"
+  ) return "image/webp";
+  if (body.byteLength >= 12 && String.fromCharCode(...body.slice(4, 8)) === "ftyp") return "video/mp4";
+  return undefined;
+};
+
 export class SafeHttpFetcher {
   constructor(
     private readonly policy: UrlImportPolicy,
@@ -174,6 +190,60 @@ export class EnvironmentSecretProvider implements SecretProvider {
     const value = process.env[name];
     if (!value) throw new DomainError("INTERNAL_ERROR", "Required server secret is not configured");
     return value;
+  }
+}
+
+export type SecretMapping = Record<string, { secretId: string; jsonKey?: string }>;
+
+type SecretsManagerPort = Pick<SecretsManagerClient, "send">;
+
+export class AwsSecretsManagerProvider implements SecretProvider {
+  private readonly cache = new Map<string, { value: string; expiresAt: number }>();
+
+  constructor(
+    private readonly client: SecretsManagerPort,
+    private readonly mapping: SecretMapping,
+    private readonly cacheTtlMs = 5 * 60 * 1000,
+    private readonly now: () => number = () => Date.now(),
+  ) {}
+
+  async get(name: string): Promise<string> {
+    const cached = this.cache.get(name);
+    const now = this.now();
+    if (cached && cached.expiresAt > now) return cached.value;
+
+    const mapped = this.mapping[name];
+    if (!mapped) throw new DomainError("INTERNAL_ERROR", "Required server secret is not mapped");
+
+    const response = await this.client.send(new GetSecretValueCommand({ SecretId: mapped.secretId }));
+    let raw: string | undefined = response.SecretString;
+    if (!raw && response.SecretBinary) raw = Buffer.from(response.SecretBinary).toString("utf8");
+    if (!raw) throw new DomainError("INTERNAL_ERROR", "Required server secret is empty");
+
+    let value = raw;
+    if (mapped.jsonKey) {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        throw new DomainError("INTERNAL_ERROR", "Mapped server secret is not valid JSON");
+      }
+      if (!parsed || typeof parsed !== "object") {
+        throw new DomainError("INTERNAL_ERROR", "Mapped server secret JSON is invalid");
+      }
+      const candidate = (parsed as Record<string, unknown>)[mapped.jsonKey];
+      if (typeof candidate !== "string" || candidate.length === 0) {
+        throw new DomainError("INTERNAL_ERROR", "Mapped server secret key is missing");
+      }
+      value = candidate;
+    }
+
+    this.cache.set(name, { value, expiresAt: now + this.cacheTtlMs });
+    return value;
+  }
+
+  clearCache(): void {
+    this.cache.clear();
   }
 }
 

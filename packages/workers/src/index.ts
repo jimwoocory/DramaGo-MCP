@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { Asset, Audit, DomainError, Outbox, ProviderAdapter, ProviderExecutionContext, ProviderStatusResult } from "@xiaoshuren/contracts";
 import { AssetCompletionStore, ProviderExecutionService, WebhookEventStore } from "@xiaoshuren/media-core";
-import { FetchedMedia, PayloadProtector } from "@xiaoshuren/security";
+import { detectMediaMime, FetchedMedia, PayloadProtector } from "@xiaoshuren/security";
 import { ObjectStore } from "@xiaoshuren/storage";
 
 export interface QueuePort {
@@ -125,21 +125,6 @@ export class WebhookProcessor {
 export interface MediaFetcher {
   fetch(sourceUrl: string, maxBytes: number): Promise<FetchedMedia>;
 }
-
-const hasPrefix = (body: Uint8Array, bytes: number[]): boolean =>
-  bytes.every((value, index) => body[index] === value);
-
-export const detectMediaMime = (body: Uint8Array): string | undefined => {
-  if (body.byteLength >= 8 && hasPrefix(body, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) return "image/png";
-  if (body.byteLength >= 3 && hasPrefix(body, [0xff, 0xd8, 0xff])) return "image/jpeg";
-  if (
-    body.byteLength >= 12 &&
-    String.fromCharCode(...body.slice(0, 4)) === "RIFF" &&
-    String.fromCharCode(...body.slice(8, 12)) === "WEBP"
-  ) return "image/webp";
-  if (body.byteLength >= 12 && String.fromCharCode(...body.slice(4, 8)) === "ftyp") return "video/mp4";
-  return undefined;
-};
 
 const extensionForMime = (mimeType: string): string => ({
   "image/png": "png",

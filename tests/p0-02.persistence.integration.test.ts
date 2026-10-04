@@ -48,12 +48,14 @@ describe("P0-02 PostgreSQL integration", () => {
 
     const provider = new FakeProvider();
     const execution = new ProviderExecutionService(repo, provider);
+    const executionRow = (await pool.query("SELECT id,provider_request_key,provider_model_id FROM provider_executions WHERE job_id=$1", [created.jobId])).rows[0];
     await execution.submit({
       tenantId: "tenant-a",
       workspaceId: "ws-a",
       jobId: created.jobId,
-      providerExecutionId: "pe-1",
-      providerRequestKey: "request-1",
+      providerExecutionId: executionRow.id,
+      providerRequestKey: executionRow.provider_request_key,
+      providerModelId: executionRow.provider_model_id,
     }, { scenario: "success" });
 
     expect((await repo.findJob(created.jobId))?.status).toBe("submitted");
