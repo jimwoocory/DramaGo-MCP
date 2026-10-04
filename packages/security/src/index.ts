@@ -1,6 +1,9 @@
 import { createCipheriv, randomBytes } from "node:crypto";
 import { lookup } from "node:dns/promises";
+import { readFile, stat } from "node:fs/promises";
 import { BlockList, isIP } from "node:net";
+import { isAbsolute, relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { GetSecretValueCommand, SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { DomainError } from "@xiaoshuren/contracts";
 
@@ -96,6 +99,10 @@ export type FetchedMedia = {
   mimeType?: string;
 };
 
+export interface MediaSourceFetcher {
+  fetch(sourceUrl: string, maxBytes: number): Promise<FetchedMedia>;
+}
+
 const hasPrefix = (body: Uint8Array, bytes: number[]): boolean =>
   bytes.every((value, index) => body[index] === value);
 
@@ -178,6 +185,59 @@ export class SafeHttpFetcher {
     }
 
     throw new DomainError("UNSAFE_SOURCE_URL", "Source URL redirect processing failed");
+  }
+}
+
+export class TrustedLocalFileFetcher implements MediaSourceFetcher {
+  private readonly root: string;
+
+  constructor(root: string) {
+    this.root = resolve(root);
+  }
+
+  async fetch(sourceUrl: string, maxBytes: number): Promise<FetchedMedia> {
+    let path: string;
+    try {
+      const url = new URL(sourceUrl);
+      if (url.protocol !== "file:") {
+        throw new DomainError("UNSAFE_SOURCE_URL", "Trusted local fetcher only accepts file URLs");
+      }
+      path = resolve(fileURLToPath(url));
+    } catch (error) {
+      if (error instanceof DomainError) throw error;
+      throw new DomainError("UNSAFE_SOURCE_URL", "Local media URL is invalid");
+    }
+
+    const rel = relative(this.root, path);
+    if (rel.startsWith("..") || isAbsolute(rel)) {
+      throw new DomainError("UNSAFE_SOURCE_URL", "Local media path escapes the trusted download directory");
+    }
+
+    const info = await stat(path);
+    if (!info.isFile()) throw new DomainError("ASSET_REJECTED", "Local media source is not a file");
+    if (info.size <= 0 || info.size > maxBytes) {
+      throw new DomainError("ASSET_REJECTED", "Local media exceeds the allowed size");
+    }
+
+    const body = new Uint8Array(await readFile(path));
+    return {
+      sourceUrl,
+      body,
+      mimeType: detectMediaMime(body),
+    };
+  }
+}
+
+export class CompositeMediaFetcher implements MediaSourceFetcher {
+  constructor(
+    private readonly httpsFetcher: MediaSourceFetcher,
+    private readonly localFetcher: MediaSourceFetcher,
+  ) {}
+
+  async fetch(sourceUrl: string, maxBytes: number): Promise<FetchedMedia> {
+    const url = new URL(sourceUrl);
+    if (url.protocol === "file:") return this.localFetcher.fetch(sourceUrl, maxBytes);
+    return this.httpsFetcher.fetch(sourceUrl, maxBytes);
   }
 }
 

@@ -14,11 +14,14 @@ Boundary rules:
 - generated media must still pass through the common Asset Ingest path before the internal Job can become `succeeded`;
 - browser automation is an adapter boundary, not business logic.
 
-Current blocker on the company workstation:
+Company workstation verification:
 
-- Tabbit LocalAgent remains installed;
-- its launcher registration points to a Tabbit Browser executable and Playwright CLI that are no longer present after an upgrade;
-- ChatGPT web E2E must wait for the browser bridge to be repaired/reinstalled, or for another controlled browser bridge to be selected.
+- primary browser is Google Chrome, not Tabbit;
+- the bridge reuses the authenticated Chrome Default profile without reading cookies, Local Storage, passwords, or session tokens;
+- every image Job opens a dedicated Chrome window and stores only its window handle / conversation URL in local runtime state;
+- prompt content is read back before Send is allowed, preventing accidental submission when Chrome focus is wrong;
+- generated images are recovered through ChatGPT's Copy Image control into the Windows clipboard and saved as PNG using System.Drawing;
+- a real ChatGPT Web image generation E2E has passed through TrustedLocalFileFetcher and AssetIngestService into the private ObjectStore path.
 
 ## Primary video path: Dreamina CLI
 

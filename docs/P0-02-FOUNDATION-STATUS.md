@@ -49,7 +49,7 @@ This checkpoint starts P0-02. It does not claim the full P0-02 Gate is complete.
 
 Company workstation verification:
 
-- `corepack pnpm test`: 34 passed, 3 skipped.
+- `corepack pnpm test`: 47 passed, 3 skipped.
 - `corepack pnpm typecheck`: passed.
 - `corepack pnpm build`: passed.
 - The skipped tests are the existing real-PostgreSQL suite gated by `POSTGRES_URL`.
