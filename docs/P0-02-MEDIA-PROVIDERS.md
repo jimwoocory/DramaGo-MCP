@@ -51,6 +51,24 @@ Implemented adapter:
 
 OAuth tokens are owned by the Dreamina CLI and are not read or persisted by the Media MCP code.
 
+### Real video E2E verification
+
+A real Seedance video task was reconciled through the production adapter path without resubmission:
+
+- model: `seedance2.0mini`
+- resolution: 1280x720 / 720p
+- duration: 4.042 seconds
+- frame rate: 24 fps
+- output: MP4
+- Dreamina task state: `success`
+- Dreamina reported credit cost: 24 credits
+
+The returned HTTPS video was then processed through:
+
+`DreaminaCliProvider -> SafeHttpFetcher -> media signature/MIME validation -> SHA-256 -> AssetIngestService -> ObjectStore -> PostgreSQL Asset + Job succeeded`
+
+This live E2E passed. The test reused the already-submitted provider task and did not blindly resubmit it after connection interruptions.
+
 ## Optional fallback Provider: Replicate
 
 The Replicate adapter remains available as a pluggable fallback/reference Provider implementation, but it is not the current primary production media path.
