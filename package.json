@@ -1,0 +1,19 @@
+{
+  "name": "xiaoshuren-media-mcp",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.15.4",
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b --pretty false",
+    "test": "vitest run tests"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/pg": "^8.11.10",
+    "pg": "^8.13.1",
+    "pg-mem": "^3.0.5",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
