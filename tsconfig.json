@@ -4,6 +4,9 @@
     { "path": "packages/contracts" },
     { "path": "packages/media-core" },
     { "path": "packages/persistence" },
-    { "path": "packages/fake-provider" }
+    { "path": "packages/fake-provider" },
+    { "path": "packages/security" },
+    { "path": "packages/storage" },
+    { "path": "packages/workers" }
   ]
 }

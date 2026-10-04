@@ -1,15 +1,15 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Pool, PoolClient } from "pg";
-import { Audit, AuthContext, DomainError, IdempotencyRecord, Job, Outbox, ProviderExecution, Workspace } from "@xiaoshuren/contracts";
-import { JobStore } from "@xiaoshuren/media-core";
+import { Asset, Audit, AuthContext, DomainError, IdempotencyRecord, Job, Outbox, ProviderExecution, Workspace } from "@xiaoshuren/contracts";
+import { AssetCompletionStore, JobStore, WebhookEventRecord, WebhookEventStore, transitionJob } from "@xiaoshuren/media-core";
 
 export const migrate = async (pool: Pick<Pool, "query">): Promise<void> => {
   const sql = await readFile(join(import.meta.dirname, "migrations", "001_p0_01.sql"), "utf8");
   for (const statement of sql.split(";\n").map(s => s.trim()).filter(Boolean)) await pool.query(statement);
 };
 
-export class PostgresJobRepository implements JobStore {
+export class PostgresJobRepository implements JobStore, WebhookEventStore, AssetCompletionStore {
   constructor(private readonly pool: Pool, private readonly client?: PoolClient) {}
 
   private q(sql: string, values: unknown[] = []) { return (this.client ?? this.pool).query(sql, values); }
@@ -52,8 +52,10 @@ export class PostgresJobRepository implements JobStore {
   }
 
   async persistCreatedJob(job: Job, execution: ProviderExecution, outbox: Outbox, audit: Audit, record: IdempotencyRecord): Promise<IdempotencyRecord | undefined> {
-    const idempotencyInsert = await this.q("INSERT INTO idempotency_records(id,tenant_id,subject_id,tool_name,idempotency_key,request_hash,response_snapshot_json,resource_type,resource_id,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT (tenant_id,subject_id,tool_name,idempotency_key) DO NOTHING RETURNING id", [record.id, record.tenantId, record.subjectId, record.toolName, record.idempotencyKey, record.requestHash, record.responseSnapshot, record.resourceType, record.resourceId, record.createdAt]);
-    if (!idempotencyInsert.rowCount) return this.findIdempotency({ tenantId: record.tenantId, subjectId: record.subjectId, clientId: "internal", scopes: [] }, record.toolName, record.idempotencyKey);
+    await this.q("INSERT INTO idempotency_records(id,tenant_id,subject_id,tool_name,idempotency_key,request_hash,response_snapshot_json,resource_type,resource_id,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT (tenant_id,subject_id,tool_name,idempotency_key) DO NOTHING", [record.id, record.tenantId, record.subjectId, record.toolName, record.idempotencyKey, record.requestHash, record.responseSnapshot, record.resourceType, record.resourceId, record.createdAt]);
+    const persistedRecord = await this.findIdempotency({ tenantId: record.tenantId, subjectId: record.subjectId, clientId: "internal", scopes: [] }, record.toolName, record.idempotencyKey);
+    if (!persistedRecord) throw new DomainError("INTERNAL_ERROR", "Idempotency record could not be persisted");
+    if (persistedRecord.id !== record.id) return persistedRecord;
     await this.q("INSERT INTO jobs(id,tenant_id,subject_id,workspace_id,quote_id,kind,public_model_id,request_hash,frozen_request_json,status,version,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)", [job.id, job.tenantId, job.subjectId, job.workspaceId, job.quoteId ?? null, job.kind, job.publicModelId, job.requestHash, job.frozenRequest, job.status, job.version, job.createdAt, job.updatedAt]);
     await this.q("INSERT INTO provider_executions(id,job_id,provider_id,provider_model_id,provider_request_key,provider_job_id,status,submission_attempts,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)", [execution.id, execution.jobId, execution.providerId, execution.providerModelId, execution.providerRequestKey, execution.providerJobId ?? null, execution.status, execution.submissionAttempts, execution.createdAt, execution.updatedAt]);
     await this.q("INSERT INTO outbox_events(id,aggregate_type,aggregate_id,event_type,payload_json,available_at,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7)", [outbox.id, outbox.aggregateType, outbox.aggregateId, outbox.eventType, outbox.payload, outbox.availableAt, outbox.createdAt]);
@@ -71,5 +73,58 @@ export class PostgresJobRepository implements JobStore {
   async updateJob(job: Job): Promise<void> {
     const result = await this.q("UPDATE jobs SET status=$1, version=$2, updated_at=$3 WHERE id=$4", [job.status, job.version, job.updatedAt, job.id]);
     if (!result.rowCount) throw new DomainError("NOT_FOUND", "Resource not found");
+  }
+
+  async recordWebhookEvent(event: WebhookEventRecord): Promise<boolean> {
+    await this.q(
+      "INSERT INTO webhook_events(id,provider_id,provider_event_id,signature_valid,payload_encrypted,received_at) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (provider_id,provider_event_id) DO NOTHING",
+      [event.id, event.providerId, event.providerEventId, event.signatureValid, Buffer.from(event.payloadEncrypted), event.receivedAt],
+    );
+    const result = await this.q(
+      "SELECT id FROM webhook_events WHERE provider_id=$1 AND provider_event_id=$2",
+      [event.providerId, event.providerEventId],
+    );
+    return result.rows[0]?.id === event.id;
+  }
+
+  async completeJobWithAsset(jobId: string, asset: Asset, audit: Audit, outbox: Outbox): Promise<void> {
+    await this.transaction(async store => {
+      const repo = store as PostgresJobRepository;
+      const job = await repo.findJob(jobId);
+      if (!job) throw new DomainError("NOT_FOUND", "Resource not found");
+
+      job.status = transitionJob(job.status, "succeeded");
+      job.version += 1;
+      job.updatedAt = new Date();
+
+      await repo.q(
+        "INSERT INTO assets(id,tenant_id,workspace_id,source_job_id,kind,status,storage_bucket,storage_key,sha256,mime_type,byte_size,metadata_json,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)",
+        [
+          asset.id,
+          asset.tenantId,
+          asset.workspaceId,
+          asset.sourceJobId ?? jobId,
+          asset.kind,
+          asset.status,
+          asset.storageBucket ?? null,
+          asset.storageKey ?? null,
+          asset.sha256 ?? null,
+          asset.mimeType ?? null,
+          asset.byteSize ?? null,
+          {},
+          asset.createdAt,
+          asset.updatedAt,
+        ],
+      );
+      await repo.updateJob(job);
+      await repo.q(
+        "INSERT INTO audit_logs(id,tenant_id,subject_id,workspace_id,action,target_type,target_id,request_id,metadata_redacted_json,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)",
+        [audit.id, audit.tenantId, audit.subjectId, audit.workspaceId, audit.action, audit.targetType, audit.targetId, audit.requestId, audit.metadataRedacted, audit.createdAt],
+      );
+      await repo.q(
+        "INSERT INTO outbox_events(id,aggregate_type,aggregate_id,event_type,payload_json,available_at,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7)",
+        [outbox.id, outbox.aggregateType, outbox.aggregateId, outbox.eventType, outbox.payload, outbox.availableAt, outbox.createdAt],
+      );
+    });
   }
 }
