@@ -10,7 +10,7 @@ This checkpoint starts P0-02. It does not claim the full P0-02 Gate is complete.
 - ProviderExecution persists provider job id, provider status, and submission attempts.
 - Provider status polling and reconciliation use bounded backoff: 5s, 15s, 30s, 60s, 5min.
 - A Provider `succeeded` observation does not mark the internal Job `succeeded`; it schedules Asset ingest and leaves the Job `running` until archival completes.
-- Replicate real Provider adapter:
+- Optional Replicate Provider adapter:
   - asynchronous prediction submission
   - polling
   - cancel

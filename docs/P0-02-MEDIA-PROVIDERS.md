@@ -1,0 +1,57 @@
+# P0-02 Media Provider Mainline
+
+The current product workflow uses different authenticated execution channels for image and video generation.
+
+## Primary image path: ChatGPT Web
+
+Image generation is driven through an authenticated ChatGPT web session, not through an API key in this repository.
+
+Boundary rules:
+
+- browser/session credentials stay inside the browser profile;
+- cookies, browser storage, passwords, and session tokens are never copied into Git, logs, MCP responses, or Media Core;
+- the browser bridge is responsible for submitting the image request and collecting generated output;
+- generated media must still pass through the common Asset Ingest path before the internal Job can become `succeeded`;
+- browser automation is an adapter boundary, not business logic.
+
+Current blocker on the company workstation:
+
+- Tabbit LocalAgent remains installed;
+- its launcher registration points to a Tabbit Browser executable and Playwright CLI that are no longer present after an upgrade;
+- ChatGPT web E2E must wait for the browser bridge to be repaired/reinstalled, or for another controlled browser bridge to be selected.
+
+## Primary video path: Dreamina CLI
+
+Video generation uses the official `dreamina` CLI and its local OAuth Device Flow state.
+
+Verified company workstation state:
+
+- executable: `C:\Users\Administrator\bin\dreamina.exe`
+- OAuth account is active;
+- `user_credit` succeeds;
+- async tasks use `submit_id`;
+- status/result lookup uses `query_result --submit_id=<id>`.
+
+Implemented adapter:
+
+- `@xiaoshuren/provider-dreamina-cli`
+- text-to-video
+- image-to-video
+- multimodal-to-video
+- multi-frame-to-video
+- first/last-frames-to-video
+- submit timeout -> UNKNOWN / reconciliation
+- query status mapping
+- deterministic failure mapping
+- HTTPS result URL extraction
+- argv-only process execution with `shell: false` to avoid prompt/path shell injection
+
+OAuth tokens are owned by the Dreamina CLI and are not read or persisted by the Media MCP code.
+
+## Optional fallback Provider: Replicate
+
+The Replicate adapter remains available as a pluggable fallback/reference Provider implementation, but it is not the current primary production media path.
+
+## AIHubMix
+
+AIHubMix is not the primary image/video generation Provider for the current product workflow. It may still be used for LLM/text/model-routing use cases outside this P0-02 media execution mainline.

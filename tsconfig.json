@@ -6,6 +6,7 @@
     { "path": "packages/media-core" },
     { "path": "packages/persistence" },
     { "path": "packages/fake-provider" },
+    { "path": "packages/provider-dreamina-cli" },
     { "path": "packages/provider-replicate" },
     { "path": "packages/queue-bullmq" },
     { "path": "packages/security" },
