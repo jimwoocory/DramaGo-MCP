@@ -1,15 +1,16 @@
 import { DomainError } from "@xiaoshuren/contracts";
 import type { JobStore } from "@xiaoshuren/media-core";
-import type { ApplicationIdempotency, MediaApplicationStore, MediaApplicationTransaction, MediaQuote } from "./ports.js";
+import type { AssetLookupPort, ApplicationIdempotency, MediaApplicationStore, MediaApplicationTransaction, MediaQuote } from "./ports.js";
 
 /** Local fact-test/reference store, NOT a durable production repository.
- * All access to the wrapped core store must go through this unit of work.
+ * All access to the wrapped core store and asset adapter must go through this unit of work.
+ * The optional asset adapter is read-only; no adapter means no assets can be resolved.
  */
 export class InMemoryMediaApplicationStore implements MediaApplicationStore {
   private quotes = new Map<string, MediaQuote>();
   private records = new Map<string, ApplicationIdempotency>();
   private tail: Promise<unknown> = Promise.resolve();
-  constructor(private readonly jobs: JobStore) {}
+  constructor(private readonly jobs: JobStore, private readonly assets?: AssetLookupPort) {}
 
   transaction<T>(fn: (tx: MediaApplicationTransaction) => Promise<T>): Promise<T> {
     const run = this.tail.then(() => this.jobs.transaction(async jobs => {
@@ -18,6 +19,7 @@ export class InMemoryMediaApplicationStore implements MediaApplicationStore {
       const recordKey = (scope: string, key: string) => JSON.stringify([scope, key]);
       const tx: MediaApplicationTransaction = {
         jobs,
+        findAsset: async (auth, id) => structuredClone(await this.assets?.findAsset(auth, id)),
         async authorize(auth, action, resource) {
           if (!auth.scopes.includes(action)) throw new DomainError("FORBIDDEN", "Required scope is missing");
           return jobs.authorize(auth, resource.workspaceId);

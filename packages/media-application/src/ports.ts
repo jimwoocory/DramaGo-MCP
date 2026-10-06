@@ -1,4 +1,4 @@
-import type { AuthContext, ModelCatalogEntry, Quote, Workspace } from "@xiaoshuren/contracts";
+import type { Asset, AuthContext, ModelCatalogEntry, Quote, Workspace } from "@xiaoshuren/contracts";
 import type { JobStore } from "@xiaoshuren/media-core";
 
 export interface ModelCatalogPort {
@@ -25,7 +25,13 @@ export type MediaQuote = Quote & {
 };
 export type ApplicationIdempotency = { scope: string; key: string; requestHash: string; result: unknown };
 export type MediaResource = { workspaceId?: string };
-export interface MediaApplicationTransaction {
+export interface AssetLookupPort {
+  findAsset(auth: AuthContext, assetId: string): Promise<Asset | undefined>;
+}
+/** Asset lookups must hold a consistent/locked view until this transaction commits.
+ * The application still checks tenant/workspace ownership and readiness itself.
+ */
+export interface MediaApplicationTransaction extends AssetLookupPort {
   /** Transaction-bound core store; must participate in the SAME commit/rollback. */
   jobs: JobStore;
   authorize(auth: AuthContext, action: string, resource: MediaResource): Promise<Workspace>;
