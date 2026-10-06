@@ -1,0 +1,12 @@
+{
+  "schema_version": "dramago.artifact-version/v1",
+  "artifact_id": "art_outline_ep01",
+  "version_id": "av_outline_ep01_1",
+  "content_digest": "sha256:97f6baacb291b033814c2d4a794532203f46e5bc053d1b4a0ffc352c9123ddc7",
+  "workspace_id": "ws_example",
+  "project_id": "project_example",
+  "kind": "episode_outline",
+  "content": "A chooses to reveal a secret and loses trust.",
+  "created_at": "2026-01-01T00:00:00Z",
+  "episode_id": "EP01"
+}

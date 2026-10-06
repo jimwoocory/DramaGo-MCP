@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dramago.invalid/p0/v1/drama-project.schema.json",
+  "title": "DramaGo P0 drama-project",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "dramago.drama-project/v1"
+    },
+    "workspace_id": {
+      "$ref": "common.schema.json#/$defs/stable_id"
+    },
+    "project_id": {
+      "$ref": "common.schema.json#/$defs/stable_id"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "planning_range": {
+      "type": "object",
+      "properties": {
+        "range_id": {
+          "$ref": "common.schema.json#/$defs/stable_id"
+        },
+        "definition_ref": {
+          "$ref": "common.schema.json#/$defs/artifact_ref"
+        },
+        "ordered_episode_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/stable_id"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "range_id",
+        "definition_ref",
+        "ordered_episode_ids"
+      ],
+      "additionalProperties": false
+    },
+    "created_at": {
+      "$ref": "common.schema.json#/$defs/timestamp"
+    }
+  },
+  "required": [
+    "schema_version",
+    "workspace_id",
+    "project_id",
+    "name",
+    "revision",
+    "planning_range",
+    "created_at"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dramago.invalid/p0/v1/approval-decision.schema.json",
+  "title": "DramaGo P0 approval-decision",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "dramago.approval-decision/v1"
+    },
+    "artifact_id": {
+      "$ref": "common.schema.json#/$defs/artifact_id"
+    },
+    "version_id": {
+      "$ref": "common.schema.json#/$defs/version_id"
+    },
+    "content_digest": {
+      "$ref": "common.schema.json#/$defs/content_digest"
+    },
+    "workspace_id": {
+      "$ref": "common.schema.json#/$defs/stable_id"
+    },
+    "project_id": {
+      "$ref": "common.schema.json#/$defs/stable_id"
+    },
+    "approval_id": {
+      "$ref": "common.schema.json#/$defs/stable_id"
+    },
+    "decision": {
+      "enum": [
+        "approved",
+        "rejected",
+        "revoked"
+      ]
+    },
+    "actor": {
+      "$ref": "common.schema.json#/$defs/actor"
+    },
+    "target_refs": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/artifact_ref"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/artifact_ref"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "policy_version": {
+      "$ref": "common.schema.json#/$defs/policy_version"
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1
+    },
+    "decided_at": {
+      "$ref": "common.schema.json#/$defs/timestamp"
+    },
+    "revoked_decision_ref": {
+      "$ref": "common.schema.json#/$defs/artifact_ref"
+    }
+  },
+  "required": [
+    "schema_version",
+    "artifact_id",
+    "version_id",
+    "content_digest",
+    "workspace_id",
+    "project_id",
+    "approval_id",
+    "decision",
+    "actor",
+    "target_refs",
+    "evidence_refs",
+    "policy_version",
+    "reason",
+    "decided_at"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "decision": {
+            "const": "revoked"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "revoked_decision_ref"
+        ]
+      },
+      "else": {
+        "not": {
+          "required": [
+            "revoked_decision_ref"
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,83 @@
+{
+  "schema_version": "dramago.script-baseline/v1",
+  "artifact_id": "art_script_baseline",
+  "version_id": "av_script_baseline_1",
+  "content_digest": "sha256:34202e3d7865bfe66d1b80d64b45fa22a30bad127f7d00df28f5f25cd7b9df90",
+  "script_baseline_id": "sb_ep01",
+  "manifest": {
+    "schema_version": "dramago.script-manifest/v1",
+    "workspace_id": "ws_example",
+    "project_id": "project_example",
+    "episode_id": "EP01",
+    "planning_baseline_id": "pb_example",
+    "planning_baseline_ref": {
+      "artifact_id": "art_planning_baseline",
+      "version_id": "av_planning_baseline_1",
+      "content_digest": "sha256:776cf05ce86a7e5f81bb15534b76977f9d935827722c6026292d87415efd1486"
+    },
+    "episode_outline": {
+      "artifact_id": "art_outline_ep01",
+      "version_id": "av_outline_ep01_1",
+      "content_digest": "sha256:97f6baacb291b033814c2d4a794532203f46e5bc053d1b4a0ffc352c9123ddc7"
+    },
+    "screenplay": {
+      "artifact_id": "art_screenplay_ep01",
+      "version_id": "av_screenplay_ep01_1",
+      "content_digest": "sha256:a6437a58f16af8ae02c600836ac7e04b22dc99e80c841ee1ff909d9dcc4a2a7b"
+    },
+    "beat_to_scene_trace": {
+      "artifact_id": "art_trace_ep01",
+      "version_id": "av_trace_ep01_1",
+      "content_digest": "sha256:b041ba7a959903e62f2c9d5b28b7d385bc4ad10973b66a8dc0ba92b66a2ed996"
+    },
+    "continuity_input": {
+      "artifact_id": "art_continuity_input",
+      "version_id": "av_continuity_input_1",
+      "content_digest": "sha256:d9d9090248dce9784a471a5d1bb5773c5a4d2afc694b005804a102c75649dc8b"
+    },
+    "continuity_output": {
+      "artifact_id": "art_continuity_output",
+      "version_id": "av_continuity_output_1",
+      "content_digest": "sha256:5f27e96df6e9f37e0a1615f99cc97841551b8ccec9a59b7ca8e4035f16de26f2"
+    },
+    "doctor_evidence": {
+      "evidence_ref": {
+        "artifact_id": "art_doctor_ep01",
+        "version_id": "av_doctor_ep01_1",
+        "content_digest": "sha256:0445a63ae311b556174f895a22aa3b19cf934a27263b7faf7f4be529fb363822"
+      },
+      "subject_refs": [
+        {
+          "artifact_id": "art_screenplay_ep01",
+          "version_id": "av_screenplay_ep01_1",
+          "content_digest": "sha256:a6437a58f16af8ae02c600836ac7e04b22dc99e80c841ee1ff909d9dcc4a2a7b"
+        }
+      ],
+      "outcome": "PASS"
+    },
+    "continuity_evidence": {
+      "evidence_ref": {
+        "artifact_id": "art_continuity_ep01",
+        "version_id": "av_continuity_ep01_1",
+        "content_digest": "sha256:827c89656013910c9446e84f09a1b290f7d1d004f97f521dc6de96ee05591f3f"
+      },
+      "subject_refs": [
+        {
+          "artifact_id": "art_screenplay_ep01",
+          "version_id": "av_screenplay_ep01_1",
+          "content_digest": "sha256:a6437a58f16af8ae02c600836ac7e04b22dc99e80c841ee1ff909d9dcc4a2a7b"
+        }
+      ],
+      "outcome": "CLEAR"
+    },
+    "policy_version": "script-baseline/v1"
+  },
+  "created_at": "2026-01-01T00:00:00Z",
+  "approval_refs": [
+    {
+      "artifact_id": "art_approval_script",
+      "version_id": "av_approval_script_1",
+      "content_digest": "sha256:9b653c6456a10daeb0cfd77aa04ef020d40e2b4620db9ceb9ec5bcb206d9df1c"
+    }
+  ]
+}

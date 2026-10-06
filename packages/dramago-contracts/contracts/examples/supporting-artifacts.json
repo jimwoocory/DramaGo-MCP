@@ -1,0 +1,321 @@
+[
+  {
+    "schema_version": "dramago.artifact-version/v1",
+    "artifact_id": "art_range",
+    "version_id": "av_range_1",
+    "content_digest": "sha256:eaf60343b80bb5365cb1e2daf930c7d69416fc59bf4c3701939244e17f7dbbeb",
+    "workspace_id": "ws_example",
+    "project_id": "project_example",
+    "kind": "planning_range",
+    "content": {
+      "workspace_id": "ws_example",
+      "project_id": "project_example",
+      "range_id": "range_season_1",
+      "ordered_episode_ids": [
+        "EP01",
+        "EP02"
+      ]
+    },
+    "created_at": "2026-01-01T00:00:00Z"
+  },
+  {
+    "schema_version": "dramago.artifact-version/v1",
+    "artifact_id": "art_foundation",
+    "version_id": "av_foundation_1",
+    "content_digest": "sha256:79c6396ece98b57664548758a1855448db3412576b4999a96fb22372b08835eb",
+    "workspace_id": "ws_example",
+    "project_id": "project_example",
+    "kind": "story_foundation",
+    "content": {
+      "direction": "Synthetic contract fixture; not a reviewed production story.",
+      "adaptation": "not_applicable"
+    },
+    "created_at": "2026-01-01T00:00:00Z"
+  },
+  {
+    "schema_version": "dramago.artifact-version/v1",
+    "artifact_id": "art_bible",
+    "version_id": "av_bible_1",
+    "content_digest": "sha256:e2b9ed9e89c86e8e99840504433eec80a235b1f62d17f7ecee1c65f797232437",
+    "workspace_id": "ws_example",
+    "project_id": "project_example",
+    "kind": "story_bible",
+    "content": {
+      "characters": [
+        "CHAR_A"
+      ],
+      "relationships": [],
+      "story_engine": "A choice has a cost.",
+      "canon": [],
+      "promise_reveal_continuity_plan": []
+    },
+    "created_at": "2026-01-01T00:00:00Z"
+  },
+  {
+    "schema_version": "dramago.artifact-version/v1",
+    "artifact_id": "art_master",
+    "version_id": "av_master_1",
+    "content_digest": "sha256:c055fe88c82006407c282d8c1beb51741de0134a7f3abce92de4e67643f71060",
+    "workspace_id": "ws_example",
+    "project_id": "project_example",
+    "kind": "master_outline",
+    "content": "Synthetic beginning, consequential choice, escalation and resolution.",
+    "created_at": "2026-01-01T00:00:00Z"
+  },
+  {
+    "schema_version": "dramago.artifact-version/v1",
+    "artifact_id": "art_architecture",
+    "version_id": "av_architecture_1",
+    "content_digest": "sha256:0bc6131619d0fd33e5915bb8809e85ae4253866436df2531fac23b6a968c2b38",
+    "workspace_id": "ws_example",
+    "project_id": "project_example",
+    "kind": "season_architecture",
+    "content": {
+      "episodes": [
+        "EP01",
+        "EP02"
+      ]
+    },
+    "created_at": "2026-01-01T00:00:00Z"
+  },
+  {
+    "schema_version": "dramago.artifact-version/v1",
+    "artifact_id": "art_outline_ep02",
+    "version_id": "av_outline_ep02_1",
+    "content_digest": "sha256:2d8729606950136124ba7586e83346aeef99e3c5e21ad17d6f803395c5055313",
+    "workspace_id": "ws_example",
+    "project_id": "project_example",
+    "kind": "episode_outline",
+    "content": "A earns back trust by accepting the cost.",
+    "created_at": "2026-01-01T00:00:00Z",
+    "episode_id": "EP02"
+  },
+  {
+    "schema_version": "dramago.artifact-version/v1",
+    "artifact_id": "art_authorization",
+    "version_id": "av_authorization_1",
+    "content_digest": "sha256:4c3fbe75c9053712b64a8d31219240f44e5982cbc60be63e1e99d3024e52ccbd",
+    "workspace_id": "ws_example",
+    "project_id": "project_example",
+    "kind": "authorization_evidence",
+    "content": {
+      "actor_id": "human_example",
+      "policy_version": "creative-approval/v1",
+      "fixture_only": true
+    },
+    "created_at": "2026-01-01T00:00:00Z"
+  },
+  {
+    "schema_version": "dramago.artifact-version/v1",
+    "artifact_id": "art_planning_review",
+    "version_id": "av_planning_review_1",
+    "content_digest": "sha256:2d4d5a13977d35cfadc1970d49354f2df108408ea5f2c1fa4a8df127ea6992fd",
+    "workspace_id": "ws_example",
+    "project_id": "project_example",
+    "kind": "review_report",
+    "content": {
+      "review_kind": "planning",
+      "outcome": "PASS",
+      "subject_refs": [
+        {
+          "artifact_id": "art_range",
+          "version_id": "av_range_1",
+          "content_digest": "sha256:eaf60343b80bb5365cb1e2daf930c7d69416fc59bf4c3701939244e17f7dbbeb"
+        },
+        {
+          "artifact_id": "art_foundation",
+          "version_id": "av_foundation_1",
+          "content_digest": "sha256:79c6396ece98b57664548758a1855448db3412576b4999a96fb22372b08835eb"
+        },
+        {
+          "artifact_id": "art_bible",
+          "version_id": "av_bible_1",
+          "content_digest": "sha256:e2b9ed9e89c86e8e99840504433eec80a235b1f62d17f7ecee1c65f797232437"
+        },
+        {
+          "artifact_id": "art_master",
+          "version_id": "av_master_1",
+          "content_digest": "sha256:c055fe88c82006407c282d8c1beb51741de0134a7f3abce92de4e67643f71060"
+        },
+        {
+          "artifact_id": "art_architecture",
+          "version_id": "av_architecture_1",
+          "content_digest": "sha256:0bc6131619d0fd33e5915bb8809e85ae4253866436df2531fac23b6a968c2b38"
+        },
+        {
+          "artifact_id": "art_outline_ep01",
+          "version_id": "av_outline_ep01_1",
+          "content_digest": "sha256:97f6baacb291b033814c2d4a794532203f46e5bc053d1b4a0ffc352c9123ddc7"
+        },
+        {
+          "artifact_id": "art_outline_ep02",
+          "version_id": "av_outline_ep02_1",
+          "content_digest": "sha256:2d8729606950136124ba7586e83346aeef99e3c5e21ad17d6f803395c5055313"
+        }
+      ],
+      "blockers": [],
+      "fixture_only": true
+    },
+    "created_at": "2026-01-01T00:00:00Z"
+  },
+  {
+    "schema_version": "dramago.artifact-version/v1",
+    "artifact_id": "art_screenplay_ep01",
+    "version_id": "av_screenplay_ep01_1",
+    "content_digest": "sha256:a6437a58f16af8ae02c600836ac7e04b22dc99e80c841ee1ff909d9dcc4a2a7b",
+    "workspace_id": "ws_example",
+    "project_id": "project_example",
+    "kind": "screenplay",
+    "content": "INT. ROOM - DAY\nA reveals the secret.",
+    "created_at": "2026-01-01T00:00:00Z",
+    "episode_id": "EP01"
+  },
+  {
+    "schema_version": "dramago.artifact-version/v1",
+    "artifact_id": "art_trace_ep01",
+    "version_id": "av_trace_ep01_1",
+    "content_digest": "sha256:b041ba7a959903e62f2c9d5b28b7d385bc4ad10973b66a8dc0ba92b66a2ed996",
+    "workspace_id": "ws_example",
+    "project_id": "project_example",
+    "kind": "beat_to_scene_trace",
+    "content": {
+      "outline_ref": {
+        "artifact_id": "art_outline_ep01",
+        "version_id": "av_outline_ep01_1",
+        "content_digest": "sha256:97f6baacb291b033814c2d4a794532203f46e5bc053d1b4a0ffc352c9123ddc7"
+      },
+      "screenplay_ref": {
+        "artifact_id": "art_screenplay_ep01",
+        "version_id": "av_screenplay_ep01_1",
+        "content_digest": "sha256:a6437a58f16af8ae02c600836ac7e04b22dc99e80c841ee1ff909d9dcc4a2a7b"
+      },
+      "trace": [
+        {
+          "beat": "B1",
+          "scene": "S1"
+        }
+      ]
+    },
+    "created_at": "2026-01-01T00:00:00Z",
+    "episode_id": "EP01"
+  },
+  {
+    "schema_version": "dramago.artifact-version/v1",
+    "artifact_id": "art_continuity_input",
+    "version_id": "av_continuity_input_1",
+    "content_digest": "sha256:d9d9090248dce9784a471a5d1bb5773c5a4d2afc694b005804a102c75649dc8b",
+    "workspace_id": "ws_example",
+    "project_id": "project_example",
+    "kind": "continuity_ledger",
+    "content": {
+      "known_secret": false
+    },
+    "created_at": "2026-01-01T00:00:00Z"
+  },
+  {
+    "schema_version": "dramago.artifact-version/v1",
+    "artifact_id": "art_continuity_output",
+    "version_id": "av_continuity_output_1",
+    "content_digest": "sha256:5f27e96df6e9f37e0a1615f99cc97841551b8ccec9a59b7ca8e4035f16de26f2",
+    "workspace_id": "ws_example",
+    "project_id": "project_example",
+    "kind": "continuity_ledger",
+    "content": {
+      "known_secret": true
+    },
+    "created_at": "2026-01-01T00:00:00Z"
+  },
+  {
+    "schema_version": "dramago.artifact-version/v1",
+    "artifact_id": "art_doctor_ep01",
+    "version_id": "av_doctor_ep01_1",
+    "content_digest": "sha256:0445a63ae311b556174f895a22aa3b19cf934a27263b7faf7f4be529fb363822",
+    "workspace_id": "ws_example",
+    "project_id": "project_example",
+    "kind": "review_report",
+    "content": {
+      "review_kind": "script_doctor",
+      "outcome": "PASS",
+      "subject_refs": [
+        {
+          "artifact_id": "art_screenplay_ep01",
+          "version_id": "av_screenplay_ep01_1",
+          "content_digest": "sha256:a6437a58f16af8ae02c600836ac7e04b22dc99e80c841ee1ff909d9dcc4a2a7b"
+        }
+      ],
+      "mandatory_fail": false,
+      "fixture_only": true
+    },
+    "created_at": "2026-01-01T00:00:00Z",
+    "episode_id": "EP01"
+  },
+  {
+    "schema_version": "dramago.artifact-version/v1",
+    "artifact_id": "art_continuity_ep01",
+    "version_id": "av_continuity_ep01_1",
+    "content_digest": "sha256:827c89656013910c9446e84f09a1b290f7d1d004f97f521dc6de96ee05591f3f",
+    "workspace_id": "ws_example",
+    "project_id": "project_example",
+    "kind": "review_report",
+    "content": {
+      "review_kind": "script_continuity",
+      "outcome": "CLEAR",
+      "subject_refs": [
+        {
+          "artifact_id": "art_screenplay_ep01",
+          "version_id": "av_screenplay_ep01_1",
+          "content_digest": "sha256:a6437a58f16af8ae02c600836ac7e04b22dc99e80c841ee1ff909d9dcc4a2a7b"
+        }
+      ],
+      "input_ref": {
+        "artifact_id": "art_continuity_input",
+        "version_id": "av_continuity_input_1",
+        "content_digest": "sha256:d9d9090248dce9784a471a5d1bb5773c5a4d2afc694b005804a102c75649dc8b"
+      },
+      "output_ref": {
+        "artifact_id": "art_continuity_output",
+        "version_id": "av_continuity_output_1",
+        "content_digest": "sha256:5f27e96df6e9f37e0a1615f99cc97841551b8ccec9a59b7ca8e4035f16de26f2"
+      },
+      "fixture_only": true
+    },
+    "created_at": "2026-01-01T00:00:00Z",
+    "episode_id": "EP01"
+  },
+  {
+    "schema_version": "dramago.artifact-version/v1",
+    "artifact_id": "art_image_plan",
+    "version_id": "av_image_plan_1",
+    "content_digest": "sha256:4cfb5b98e5b4ef629fd1681f0d6a8cf08336aafcbe08118a5d78080e3050e79c",
+    "workspace_id": "ws_example",
+    "project_id": "project_example",
+    "kind": "asset_generation_plan",
+    "content": {
+      "script_baseline_ref": {
+        "artifact_id": "art_script_baseline",
+        "version_id": "av_script_baseline_1",
+        "content_digest": "sha256:34202e3d7865bfe66d1b80d64b45fa22a30bad127f7d00df28f5f25cd7b9df90"
+      },
+      "target": "CHAR_A",
+      "prompt": "Synthetic portrait fixture, no provider call."
+    },
+    "created_at": "2026-01-01T00:00:00Z",
+    "episode_id": "EP01"
+  },
+  {
+    "schema_version": "dramago.artifact-version/v1",
+    "artifact_id": "art_budget_receipt",
+    "version_id": "av_budget_receipt_1",
+    "content_digest": "sha256:43f602ea8bceffe9a37d2bf9a552a816ea426c43bd204f0f344ccbd2e952d165",
+    "workspace_id": "ws_example",
+    "project_id": "project_example",
+    "kind": "other_drama",
+    "content": {
+      "evidence_kind": "external_budget_authorization_receipt",
+      "quote_id": "quote_example",
+      "external_authorization_id": "budget_example",
+      "fixture_only": true
+    },
+    "created_at": "2026-01-01T00:00:00Z"
+  }
+]

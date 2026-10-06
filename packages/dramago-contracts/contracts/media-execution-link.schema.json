@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dramago.invalid/p0/v1/media-execution-link.schema.json",
+  "title": "DramaGo P0 media-execution-link",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "dramago.media-execution-link/v1"
+    },
+    "execution_id": {
+      "$ref": "common.schema.json#/$defs/stable_id"
+    },
+    "execution_intent": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": "dramago.execution-intent/v1"
+        },
+        "workspace_id": {
+          "$ref": "common.schema.json#/$defs/stable_id"
+        },
+        "project_id": {
+          "$ref": "common.schema.json#/$defs/stable_id"
+        },
+        "generation_attempt": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "request_key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "request_key_version": {
+          "enum": [
+            "v10-preserved",
+            "dramago/v1"
+          ]
+        },
+        "operation": {
+          "enum": [
+            "generate_image",
+            "generate_video"
+          ]
+        },
+        "target_ref": {
+          "$ref": "common.schema.json#/$defs/artifact_ref"
+        },
+        "script_baseline_id": {
+          "$ref": "common.schema.json#/$defs/stable_id"
+        },
+        "script_baseline_ref": {
+          "$ref": "common.schema.json#/$defs/artifact_ref"
+        },
+        "production_plan_ref": {
+          "$ref": "common.schema.json#/$defs/artifact_ref"
+        },
+        "workbench_revision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "public_model_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "schema_version",
+        "workspace_id",
+        "project_id",
+        "generation_attempt",
+        "request_key",
+        "request_key_version",
+        "operation",
+        "target_ref",
+        "script_baseline_id",
+        "script_baseline_ref",
+        "production_plan_ref",
+        "workbench_revision",
+        "public_model_id"
+      ],
+      "additionalProperties": false
+    },
+    "intent_digest": {
+      "$ref": "common.schema.json#/$defs/content_digest"
+    },
+    "quote_id": {
+      "$ref": "common.schema.json#/$defs/external_id"
+    },
+    "media_job_id": {
+      "$ref": "common.schema.json#/$defs/external_id"
+    },
+    "media_asset_ids": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/external_id"
+      },
+      "minItems": 0,
+      "uniqueItems": true
+    },
+    "budget_authorization_ref": {
+      "$ref": "common.schema.json#/$defs/artifact_ref"
+    },
+    "creative_run_id": {
+      "$ref": "common.schema.json#/$defs/stable_id"
+    },
+    "created_at": {
+      "$ref": "common.schema.json#/$defs/timestamp"
+    }
+  },
+  "required": [
+    "schema_version",
+    "execution_id",
+    "execution_intent",
+    "intent_digest",
+    "media_asset_ids",
+    "created_at"
+  ],
+  "additionalProperties": false,
+  "dependentRequired": {
+    "media_job_id": [
+      "quote_id",
+      "budget_authorization_ref"
+    ]
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "media_asset_ids": {
+            "minItems": 1
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "media_job_id"
+        ]
+      }
+    }
+  ],
+  "description": "Drama-owned linkage only. IDs reference external Media facts; no Job state, Job.version, approval status or result adoption is writable here. Budget evidence is separate from creative approval."
+}

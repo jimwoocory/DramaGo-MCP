@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dramago.invalid/p0/v1/artifact-version.schema.json",
+  "title": "DramaGo P0 artifact-version",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "dramago.artifact-version/v1"
+    },
+    "artifact_id": {
+      "$ref": "common.schema.json#/$defs/artifact_id"
+    },
+    "version_id": {
+      "$ref": "common.schema.json#/$defs/version_id"
+    },
+    "content_digest": {
+      "$ref": "common.schema.json#/$defs/content_digest"
+    },
+    "workspace_id": {
+      "$ref": "common.schema.json#/$defs/stable_id"
+    },
+    "project_id": {
+      "$ref": "common.schema.json#/$defs/stable_id"
+    },
+    "kind": {
+      "enum": [
+        "planning_range",
+        "story_foundation",
+        "story_bible",
+        "master_outline",
+        "season_architecture",
+        "episode_outline",
+        "screenplay",
+        "beat_to_scene_trace",
+        "review_report",
+        "continuity_ledger",
+        "authorization_evidence",
+        "asset_generation_plan",
+        "video_production_package",
+        "other_drama"
+      ]
+    },
+    "content": {
+      "type": [
+        "object",
+        "string"
+      ]
+    },
+    "created_at": {
+      "$ref": "common.schema.json#/$defs/timestamp"
+    },
+    "episode_id": {
+      "$ref": "common.schema.json#/$defs/stable_id"
+    },
+    "parent_ref": {
+      "$ref": "common.schema.json#/$defs/artifact_ref"
+    }
+  },
+  "required": [
+    "schema_version",
+    "artifact_id",
+    "version_id",
+    "content_digest",
+    "workspace_id",
+    "project_id",
+    "kind",
+    "content",
+    "created_at"
+  ],
+  "additionalProperties": false
+}

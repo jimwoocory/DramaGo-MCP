@@ -1,0 +1,20 @@
+{
+  "schema_version": "dramago.drama-project/v1",
+  "workspace_id": "ws_example",
+  "project_id": "project_example",
+  "name": "Synthetic P0 example",
+  "revision": 0,
+  "planning_range": {
+    "range_id": "range_season_1",
+    "definition_ref": {
+      "artifact_id": "art_range",
+      "version_id": "av_range_1",
+      "content_digest": "sha256:eaf60343b80bb5365cb1e2daf930c7d69416fc59bf4c3701939244e17f7dbbeb"
+    },
+    "ordered_episode_ids": [
+      "EP01",
+      "EP02"
+    ]
+  },
+  "created_at": "2026-01-01T00:00:00Z"
+}

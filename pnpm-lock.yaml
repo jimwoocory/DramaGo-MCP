@@ -44,6 +44,8 @@ importers:
 
   packages/contracts: {}
 
+  packages/dramago-contracts: {}
+
   packages/fake-provider:
     dependencies:
       '@xiaoshuren/contracts':

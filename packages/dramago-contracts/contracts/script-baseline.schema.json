@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dramago.invalid/p0/v1/script-baseline.schema.json",
+  "title": "DramaGo P0 script-baseline",
+  "x-immutable": true,
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "dramago.script-baseline/v1"
+    },
+    "artifact_id": {
+      "$ref": "common.schema.json#/$defs/artifact_id"
+    },
+    "version_id": {
+      "$ref": "common.schema.json#/$defs/version_id"
+    },
+    "content_digest": {
+      "$ref": "common.schema.json#/$defs/content_digest"
+    },
+    "script_baseline_id": {
+      "$ref": "common.schema.json#/$defs/stable_id"
+    },
+    "manifest": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": "dramago.script-manifest/v1"
+        },
+        "workspace_id": {
+          "$ref": "common.schema.json#/$defs/stable_id"
+        },
+        "project_id": {
+          "$ref": "common.schema.json#/$defs/stable_id"
+        },
+        "episode_id": {
+          "$ref": "common.schema.json#/$defs/stable_id"
+        },
+        "planning_baseline_id": {
+          "$ref": "common.schema.json#/$defs/stable_id"
+        },
+        "planning_baseline_ref": {
+          "$ref": "common.schema.json#/$defs/artifact_ref"
+        },
+        "episode_outline": {
+          "$ref": "common.schema.json#/$defs/artifact_ref"
+        },
+        "screenplay": {
+          "$ref": "common.schema.json#/$defs/artifact_ref"
+        },
+        "beat_to_scene_trace": {
+          "$ref": "common.schema.json#/$defs/artifact_ref"
+        },
+        "continuity_input": {
+          "$ref": "common.schema.json#/$defs/artifact_ref"
+        },
+        "continuity_output": {
+          "$ref": "common.schema.json#/$defs/artifact_ref"
+        },
+        "doctor_evidence": {
+          "allOf": [
+            {
+              "$ref": "common.schema.json#/$defs/review_evidence"
+            },
+            {
+              "properties": {
+                "outcome": {
+                  "const": "PASS"
+                }
+              }
+            }
+          ]
+        },
+        "continuity_evidence": {
+          "allOf": [
+            {
+              "$ref": "common.schema.json#/$defs/review_evidence"
+            },
+            {
+              "properties": {
+                "outcome": {
+                  "const": "CLEAR"
+                }
+              }
+            }
+          ]
+        },
+        "policy_version": {
+          "$ref": "common.schema.json#/$defs/policy_version"
+        }
+      },
+      "required": [
+        "schema_version",
+        "workspace_id",
+        "project_id",
+        "episode_id",
+        "planning_baseline_id",
+        "planning_baseline_ref",
+        "episode_outline",
+        "screenplay",
+        "beat_to_scene_trace",
+        "continuity_input",
+        "continuity_output",
+        "doctor_evidence",
+        "continuity_evidence",
+        "policy_version"
+      ],
+      "additionalProperties": false
+    },
+    "approval_refs": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/artifact_ref"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "created_at": {
+      "$ref": "common.schema.json#/$defs/timestamp"
+    }
+  },
+  "required": [
+    "schema_version",
+    "artifact_id",
+    "version_id",
+    "content_digest",
+    "script_baseline_id",
+    "manifest",
+    "approval_refs",
+    "created_at"
+  ],
+  "additionalProperties": false
+}
