@@ -1,5 +1,8 @@
 # DramaGo MCP V1 — Relocation architecture decisions
 
+> **Historical relocation intake record.** The contracts/fact/composition work described as future in this P0 document has now landed in the integrated DramaGo-MCP relocation baseline. See [P1-INTEGRATED-STATUS.md](P1-INTEGRATED-STATUS.md) for current implementation status. P0 invariants remain authoritative where not superseded.
+
+
 Status: architecture and contract obligations for a bounded relocation. This branch contains contracts/docs/scripts/tests only; no Drama application, persistence or dispatcher implementation is delivered. Source selection and historical evidence are separated in [P0-SOURCE-BASELINE.md](P0-SOURCE-BASELINE.md).
 
 Authority: the relocation `salvage-manifest.md` identified in that baseline supersedes the original documents' USVDS-hosted placement. Preserve their domain and recovery invariants, not their old repository topology or closure claims.

@@ -1,5 +1,8 @@
 # DramaGo MCP V1 — Relocation source baseline
 
+> **Historical relocation intake record.** The contracts/fact/composition work described as future in this P0 document has now landed in the integrated DramaGo-MCP relocation baseline. See [P1-INTEGRATED-STATUS.md](P1-INTEGRATED-STATUS.md) for current implementation status. P0 invariants remain authoritative where not superseded.
+
+
 Status: source selection and contracts/docs intake record, not migration completion, runtime acceptance or release approval. This replaces the old USVDS checkout baseline for the new target; it does not rewrite historical evidence.
 
 ## 1. Immutable role pins

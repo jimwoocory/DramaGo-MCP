@@ -1,5 +1,7 @@
 # Relocated Drama Fact Layer tests
 
+> Integrated status note: this file originated with the fact-layer relocation workstream. The current repository also includes the relocated Drama contracts package, composition app, Media wire, and external USVDS port. Current aggregate verification is tracked in `../../docs/dramago-mcp-v1/P1-INTEGRATED-STATUS.md`; the historical workstream counts below remain provenance for that slice only.
+
 ## Sources and selection
 
 - Domain/security: `975464ff5840ec9781430e7c47cc422b9a258fee`.
