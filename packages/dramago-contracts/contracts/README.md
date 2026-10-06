@@ -1,5 +1,12 @@
 # DramaGo P0 core contracts
 
+P2 adds `story-development.schema.json` (named content/port definitions) and
+`story-development-policy.v1.json` (step/port/kind policy), without changing the
+P0 schemas or generic envelopes described below. See
+[the P2 Story contract](../../../docs/dramago-mcp-v1/P2-STORY-CONTRACTS.md) and
+[offline acceptance](../../../docs/dramago-mcp-v1/P2-CONTRACT-ACCEPTANCE.md).
+These additions are contracts/tests only, not Story runtime implementation.
+
 ## Scope and evidence
 
 This directory freezes **P0 contract decisions**, not P1 business runtime. It adds

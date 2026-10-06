@@ -328,7 +328,11 @@ class FixtureTests(unittest.TestCase):
         paths = list(ROOT.rglob("*.json"))
         self.assertEqual(set(paths), {ROOT / f"{name}.schema.json" for name in SCHEMAS}
                          | {ROOT / "examples" / f"{name}.json" for name in self.examples}
-                         | {ROOT / "tool-catalog.v1.json"})
+                         | {ROOT / "tool-catalog.v1.json"}
+                         # P2 definition library/policy: Node owns their schema and
+                         # semantic conformance tests; do not treat them as P0 facts.
+                         | {ROOT / "story-development.schema.json",
+                            ROOT / "story-development-policy.v1.json"})
         for path in paths:
             read_json(path)
         for record in self.records:
