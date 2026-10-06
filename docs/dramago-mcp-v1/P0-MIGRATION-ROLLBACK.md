@@ -3,7 +3,7 @@
 > **Historical relocation intake record.** The fact layer and composition described below as future work have now landed in the integrated DramaGo-MCP relocation baseline. See [P1-INTEGRATED-STATUS.md](P1-INTEGRATED-STATUS.md) for current implementation status. P0 invariants and exclusions remain authoritative where not superseded.
 
 
-Status: bounded contract intake and future operational runbook. No database migration, cutover, runtime transplant or rollback has been executed by this documentation change. This branch delivers contracts/docs/scripts/tests, not Drama application/persistence/dispatcher or P2 runtime.
+Status: historical P0 intake plus operational runbook. The integrated DramaGo-MCP baseline now contains the relocated Drama application, persistence source, and internal dispatcher; no production database migration/cutover/rollback rehearsal or P2 creative runtime has been executed.
 
 ## 1. Source selection is not implementation
 

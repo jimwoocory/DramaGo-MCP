@@ -3,7 +3,7 @@
 > **Historical relocation intake record.** The contracts/fact/composition work described as future in this P0 document has now landed in the integrated DramaGo-MCP relocation baseline. See [P1-INTEGRATED-STATUS.md](P1-INTEGRATED-STATUS.md) for current implementation status. P0 invariants remain authoritative where not superseded.
 
 
-Status: required evidence for the contracts/docs branch and separate downstream releases. Target static/test results are recorded in P0-SOURCE-BASELINE.md. No owner approval or runtime completion is asserted here.
+Status: historical P0 contract-intake acceptance gates plus downstream release invariants. The contracts/fact/composition relocation is now integrated; current implementation status is recorded in [P1-INTEGRATED-STATUS.md](P1-INTEGRATED-STATUS.md). These gates do not assert production readiness.
 
 ## 1. Scope and provenance gate
 

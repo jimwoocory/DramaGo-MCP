@@ -3,11 +3,11 @@
 > **Historical relocation intake record.** The fact layer and composition described below as future work have now landed in the integrated DramaGo-MCP relocation baseline. See [P1-INTEGRATED-STATUS.md](P1-INTEGRATED-STATUS.md) for current implementation status. P0 invariants and exclusions remain authoritative where not superseded.
 
 
-Status: compatibility requirements and attributed source observations, not target runtime certification. This contracts/docs/scripts/tests branch adds no Drama handlers, application, persistence or dispatcher. [P0-SOURCE-BASELINE.md](P0-SOURCE-BASELINE.md) records current pins and historical metadata separately.
+Status: historical P0 compatibility requirements and attributed source observations, not production runtime certification. The integrated DramaGo-MCP baseline now includes the relocated Drama application, persistence, and internal dispatcher; current status is recorded in [P1-INTEGRATED-STATUS.md](P1-INTEGRATED-STATUS.md).
 
 ## 1. Boundary and provenance
 
-The new DramaGo-MCP repository owns future composition on hardened Media `8f33226`. Contracts come from `8ef5218`; application `975464f` and persistence `e3bcbf0` are selected for later targeted integration. USVDS remains external frozen read-only; its host, canonical stage tree and generated distributions are not target dependencies to copy.
+The new DramaGo-MCP repository owns composition on hardened Media `8f33226`. Contracts were selected from `8ef5218`; application `975464f` and persistence `e3bcbf0` were the relocation sources and have now been integrated into the current baseline. USVDS remains external frozen read-only; its host, canonical stage tree and generated distributions are not target dependencies to copy.
 
 Historical observations below are preserved from the six P0 source documents and relocation salvage manifest, not newly executed behavior. Old `93bf3ba` / `a1f3af1` catalog metadata describes naming and original consumer evidence. It is not current acceptance, a dependency path or a claim that public handlers run. Preserve IDs without preserving the former product placement.
 

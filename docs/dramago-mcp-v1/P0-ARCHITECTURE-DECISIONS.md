@@ -30,10 +30,10 @@ Workbench / MCP client
 | Target boundary | Responsibility | Status in this contracts branch |
 | --- | --- | --- |
 | `packages/dramago-contracts/contracts` | Immutable fact schemas, examples and declarative catalog | Contract intake scope; package `@dramago/contracts` |
-| `apps/dramago-mcp` | Single app/composition root | Future; selected source is only an internal dispatcher |
-| `packages/dramago-application` | Domain commands, version/approval gates, orchestration | Future intake from `975464f` |
-| `packages/dramago-persistence` | Domain repositories, transactions, projections and migrations | Future intake from `e3bcbf0` plus required baseline lookup merge |
-| `packages/dramago-usvds-adapter` | Fixed-identity external capability boundary | Future port; no stage invocation here |
+| `apps/dramago-mcp` | Single app/composition root | Integrated internal dispatcher/composition skeleton; Remote MCP transport/OAuth remain later work |
+| `packages/dramago-application` | Domain commands, version/approval gates, orchestration | Integrated from the selected domain-security source and adapted to the new repository |
+| `packages/dramago-persistence` | Domain repositories, transactions, projections and migrations | Integrated from the selected persistence source with required baseline-version lookup support |
+| `packages/dramago-usvds-adapter` | Fixed-identity external capability boundary | Integrated type/port-only boundary; no stage invocation implementation yet |
 | `packages/story-development` | New-repository Story ownership | Reserved future; no P2 implementation |
 | Existing Media packages | Generic application/core, contracts, storage, persistence, workers and providers | Hardened foundation retained at `8f33226` |
 

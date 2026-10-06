@@ -19,15 +19,15 @@ Media hardened source=8f33226
 | --- | --- | --- |
 | Target main | `8f33226ae06875a1f79abebe3ce02ece0058c0d5` | Existing hardened Media foundation for the new DramaGo-MCP repository |
 | Contracts | `8ef521800c6fbca01dc03d6bbd404029d92614ea` | Selected contracts, three contract scripts, contract tests and six documents; documentation placement and gates are substantively revised |
-| Application | `975464ff5840ec9781430e7c47cc422b9a258fee` | Future selected domain-security application and internal dispatcher; not implemented by this contracts branch |
-| Persistence | `e3bcbf0ac4778285f7d65fc532d3caa3a0d9c1b9` | Future selected hardened adapters, requiring the application source's baseline-version lookups; not implemented by this branch |
+| Application | `975464ff5840ec9781430e7c47cc422b9a258fee` | Historical selected domain-security application source; its reusable fact-layer behavior is now integrated in the current DramaGo-MCP baseline |
+| Persistence | `e3bcbf0ac4778285f7d65fc532d3caa3a0d9c1b9` | Historical selected hardened persistence source; the reusable adapters plus required baseline-version lookups are now integrated in the current DramaGo-MCP baseline |
 | Hardened Media | `8f33226ae06875a1f79abebe3ce02ece0058c0d5` | Retain in place; do not recopy or downgrade generic Media |
 
-A selected source is not a completed transplant. The application and persistence branches have complementary fixes, not interchangeable complete implementations. Their combined target must pass its own tests.
+At P0 selection time, a selected source was not yet a completed transplant. The application and persistence branches had complementary fixes rather than interchangeable implementations; their selected parts are now integrated and must continue to pass the combined target tests.
 
 ## 2. Review inputs and local evidence locations
 
-Relocation authority for this intake: `C:/Users/Administrator/AgentDock/reviews/dramago-mcp-relocation/salvage-manifest.md`, especially source selection, sections 2A–2G, 3–5 and 7. Its proposed full salvage batch is broader than this contracts/docs branch.
+Relocation authority for this intake: `C:/Users/Administrator/AgentDock/reviews/dramago-mcp-relocation/salvage-manifest.md`, especially source selection, sections 2A–2G, 3–5 and 7. Its proposed full salvage batch was broader than the original contracts-only workstream and has now been selectively integrated into the current baseline.
 
 | Location | Use |
 | --- | --- |
