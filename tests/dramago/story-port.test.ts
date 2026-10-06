@@ -8,8 +8,8 @@ test('internal Story port separates writer/reviewer capabilities and excludes ap
   const source = `
     import type { StoryService, StoryWriterPort, StoryReviewerPort, StoryCommand } from '../../apps/dramago-mcp/story-ports.js';
     import { createDramaGoMcp } from '../../apps/dramago-mcp/index.js';
-    const writer: StoryWriterPort = { async runStoryStep(auth, input) { return { run_id: 'writer-run' }; } };
-    const reviewer: StoryReviewerPort = { async reviewPlanning(auth, input) { return { run_id: 'review-run' }; } };
+    const writer: StoryWriterPort = { async runStoryStep(auth, input) { return { creative_run_id: 'writer-run' }; } };
+    const reviewer: StoryReviewerPort = { async reviewPlanning(auth, input) { return { creative_run_id: 'review-run' }; } };
     const storyService: StoryService = { writer, reviewer };
     createDramaGoMcp({ storyService });
     const writerOnly: StoryService = { writer };
@@ -22,9 +22,13 @@ test('internal Story port separates writer/reviewer capabilities and excludes ap
     createDramaGoMcp({ storyService: { reviewer: writer } });
     // @ts-expect-error write commands require both preconditions
     const incomplete: StoryCommand = { idempotency_key: 'key' };
+    // @ts-expect-error runtime run_id is not the public result field
+    const legacyResult: import('../../apps/dramago-mcp/story-ports.js').StoryRunResult = { run_id: 'legacy' };
+    // @ts-expect-error context_ref is mandatory, runtime refs cannot replace it
+    const runtimePayload: StoryCommand = { project_id: 'p', expected_revision: 0, idempotency_key: 'k', input_refs: [] };
   `
   const options: ts.CompilerOptions = {
-    strict: true, noEmit: true, skipLibCheck: true, types: [], allowJs: true, checkJs: false,
+    strict: true, noEmit: true, skipLibCheck: true, types: ['node'], allowJs: true, checkJs: false,
     target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.NodeNext,
     moduleResolution: ts.ModuleResolutionKind.NodeNext,
   }

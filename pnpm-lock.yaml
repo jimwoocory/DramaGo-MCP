@@ -29,6 +29,12 @@ importers:
 
   apps/dramago-mcp:
     dependencies:
+      '@xiaoshuren/dramago-application':
+        specifier: workspace:*
+        version: link:../../packages/dramago-application
+      '@xiaoshuren/story-development':
+        specifier: workspace:*
+        version: link:../../packages/story-development
       '@xiaoshuren/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts

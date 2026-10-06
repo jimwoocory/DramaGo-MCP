@@ -14,7 +14,7 @@ function files(dir) {
   })
 }
 const relative = file => path.relative(root, file).replaceAll('\\', '/')
-const dramaDependency = value => /(?:dramago|usvds|usvd-v9)/i.test(value)
+const dramaDependency = value => /(?:dramago|story-development|usvds|usvd-v9)/i.test(value)
 const absoluteOrWorktree = value => /^(?:[a-z]:[\\/]|[/\\]|file:|~[/\\])/i.test(value) || /(?:^|[/\\])(?:worktrees|users|home)[/\\]/i.test(value)
 function moduleReferences(source) {
   const found = []
@@ -46,7 +46,18 @@ test('boundary detectors cover imports, re-exports, dynamic imports, require and
   assert.equal(absoluteOrWorktree('../contracts/src/index.js'), false)
 })
 
-test('generic Media, contracts, persistence, providers and workers cannot depend on Drama or USVDS', () => {
+test('dependency detector rejects Story package, relative imports and workspace mappings', () => {
+  const refs = moduleReferences(parse('media.ts', `import { StoryDevelopmentService } from '@xiaoshuren/story-development';
+    export * from '../story-development/src/index.js';
+    const runtime = import('../../story-development/src/index.js');
+    const legacy = require('@xiaoshuren/story-development');
+    type Service = import('@xiaoshuren/story-development').StoryDevelopmentService;`))
+  assert.equal(refs.length, 5)
+  for (const ref of [...refs, 'workspace:../story-development', '../story-development']) assert.ok(dramaDependency(ref), ref)
+  assert.equal(dramaDependency('@xiaoshuren/media-application'), false)
+})
+
+test('generic Media, contracts, persistence, providers and workers cannot depend on Drama, Story or USVDS', () => {
   const generic = files(path.join(root, 'packages')).filter(file => !/^packages\/(?:dramago-|story-development\/)/.test(relative(file)))
   assert.ok(generic.some(file => relative(file).startsWith('packages/media-application/')))
   for (const file of generic) {
@@ -59,6 +70,18 @@ test('generic Media, contracts, persistence, providers and workers cannot depend
       for (const [name, specifier] of Object.entries(dependencies)) assert.ok(!dramaDependency(`${name} ${specifier}`), `${relative(file)} depends on ${name}`)
       for (const mapping of Object.values(value.compilerOptions?.paths ?? {})) assert.ok(!dramaDependency(JSON.stringify(mapping)), relative(file))
       for (const ref of value.references ?? []) assert.ok(!dramaDependency(ref.path), relative(file))
+    }
+  }
+})
+
+test('Story runtime and local MCP adapter cannot import USVDS runtime', () => {
+  const targets = [...files(path.join(root, 'packages/story-development')), ...files(path.join(root, 'apps/dramago-mcp'))]
+  for (const file of targets) {
+    if (/\.(?:[cm]?[jt]sx?)$/.test(file)) {
+      for (const ref of moduleReferences(parse(file, readFileSync(file, 'utf8')))) assert.doesNotMatch(ref, /(?:usvds|usvd-v9|dsh-plugin)/i, `${relative(file)} imports ${ref}`)
+    }
+    if (path.basename(file) === 'package.json' || path.basename(file).startsWith('tsconfig')) {
+      assert.doesNotMatch(readFileSync(file, 'utf8'), /(?:usvds|usvd-v9|dsh-plugin)/i, relative(file))
     }
   }
 })

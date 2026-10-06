@@ -12,16 +12,18 @@ Inject an existing MediaApplicationService through `createLocalMediaPorts(servic
 
 ### P2 Story composition
 
-The optional `storyService` uses the internal, type-only `StoryService` interface in `story-ports.ts`:
+Inject `createLocalStoryPorts(runtime, repository)` from `./story-ports`, where `runtime` is the actual `StoryDevelopmentService` and `repository` is the same tenant-bound fact repository. Pass the returned `StoryService` to `createDramaGoMcp({ storyService, services, mediaPorts, authorize })`. This is a local dependency-injected adapter, not a transport or synthetic Story implementation:
 
 - `storyService.writer.runStoryStep(auth, input)` registers only `dramago_story_step_run` (`story.execute`).
 - `storyService.reviewer.reviewPlanning(auth, input)` registers only `dramago_planning_review` (`story.review`).
 - Either role may be omitted. Review never falls back to the writer, and methods injected into the wrong role, `services`, or `mediaPorts` do not register Story tools.
-- `dramago_planning_baseline_approve` still registers exclusively through `services.approvePlanningBaseline` with `story.approve`. Neither Story role exposes approval; PASS and blockers are returned as evidence, not interpreted as approval.
+- `dramago_planning_baseline_approve` still registers exclusively through `services.approvePlanningBaseline` with `story.approve`. Neither Story role exposes approval; PASS and blockers remain persisted review evidence, never approval.
 
-Both Story methods receive the unchanged frozen wire command, including exact refs, `idempotency_key` and `expected_revision`, and return an object containing the durable `run_id` (the catalog result kind is `creative_run_id`). Application errors use the existing sanitized Drama error mapper. Composition performs no retries, caching, output synthesis, candidate assembly or automatic next step.
+Public requests/results are the checked-in `story-development.schema.json` definitions `step_request`, `review_request`, and `run_result`. A request supplies `project_id`, `expected_revision`, `idempotency_key`, and an exact `context_ref` (plus `step` for generation). Runtime-only `workspace_id`, `input_refs`, and `planning_scope` are rejected on the wire. Both tools return only `{ creative_run_id }`; its value is exactly the stored CreativeRun's `run_id`, usable with the existing run fact query. Internal project revision, status, outputs and error details are not added to this result. Composition validates the wire shape and projects results even for custom injected Story ports.
 
-The injected Story application, not this dispatcher, owns step allowlisting, writer/reviewer independence, research requirements and immutable snapshots, exact ref/digest/ownership validation, complete ordered episode coverage, immutable artifact/review evidence persistence, durable CreativeRun facts, and transactional idempotency/CAS. The broad internal command type deliberately does not duplicate the domain schema. Registration does not prove those domain invariants; composition tests use injected probes, while domain acceptance belongs to the Story implementation.
+The adapter resolves the project workspace from repository facts and reauthorizes it; an auth default is not used to invent workspace ownership. It verifies the exact immutable context, digest, ownership, operation, revision, declared planning range, role bindings, configuration, sources and research selection. Review scope is assembled from those bindings and the exact episode set, never a head/latest lookup. Bible's legacy runtime direction prerequisite is recovered only from an unambiguous exact foundation dependency graph; missing/ambiguous dependencies fail closed. The context and configuration are retained in runtime provenance and replay identity. An explicit optional research omission suppresses discovery; a supplied snapshot must be preserved by the research port. The selected executor must match the runtime's configured role identity.
+
+The runtime still owns independent review, transitive provenance checks, immutable artifacts/evidence, durable run facts and transactional idempotency/CAS. Its internal proposal/research content formats are not redefined by this request/result adapter. Incompatible stored content fails closed rather than being rewritten under an existing digest. No retries, caching, approvals, provider execution, candidate assembly or automatic next step are introduced. Node tests retain registration/authorization probes; `story-runtime-composition.test.ts` additionally drives public tool calls through this adapter into the actual service and InMemory repository.
 
 Workbench, Script drafting/review (Stages 03/04), and Production tools (05–09) remain `declared_unimplemented` / `TOOL_NOT_IMPLEMENTED`, even if similarly named functions are supplied. No LLM, web, browser, CLI, external USVDS runtime, remote transport, UI or background queue is introduced. Generic Media code and contracts are unchanged.
 
@@ -33,7 +35,7 @@ Unknown and declared-unimplemented tools fail closed. Fact-layer errors are mapp
 
 ## JS/TS boundary and verification
 
-Keep the existing monorepo source-entry convention. `index.js` remains native ESM (behavior checked by Node tests); `media-ports.ts` is strict TypeScript and needs a TS-aware consumer, as do the existing Media packages. The app's composite project uses `allowJs`, `checkJs: false`, and declaration-only emission. This avoids relocating the JS catalog-relative URL into `dist` and does not claim a runnable distribution build. No generic Media package configuration is changed.
+Keep the existing monorepo source-entry convention. `index.js` remains native ESM (behavior checked by Node tests); `media-ports.ts` and `story-ports.ts` are strict TypeScript and need a TS-aware consumer, as do the existing Media packages. The app's composite project uses `allowJs`, `checkJs: false`, and declaration-only emission. This avoids relocating the JS catalog-relative URL into `dist` and does not claim a runnable distribution build. No generic Media package configuration is changed.
 
 From the repository root:
 

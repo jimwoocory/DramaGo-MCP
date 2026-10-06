@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { isStoryTool, validStoryRequest, storyResult } from './story-contract.js'
 
 function deepFreeze(value) {
   if (value && typeof value === 'object') {
@@ -151,7 +152,7 @@ export function createDramaGoMcp({ catalog: suppliedCatalog = loadCatalog(), ser
       try { auth = jsonSnapshot(auth) } catch { return errorResult('FORBIDDEN') }
       if (!validAuth(auth) || !auth.scopes.includes(tool.authorization_class)) return errorResult('FORBIDDEN')
       try { input = jsonSnapshot(input) } catch { return errorResult('VALIDATION_ERROR') }
-      if (!validPreconditions(tool, input)) return errorResult('VALIDATION_ERROR')
+      if (!validPreconditions(tool, input) || (isStoryTool(name) && !validStoryRequest(name, input))) return errorResult('VALIDATION_ERROR')
       let authorized = false
       try {
         authorized = typeof authorize === 'function' && await authorize(auth, tool.authorization_class, {
@@ -167,7 +168,8 @@ export function createDramaGoMcp({ catalog: suppliedCatalog = loadCatalog(), ser
         return successResult(value)
       }
       try {
-        return successResult(await handlers.get(name)(auth, input))
+        const value = await handlers.get(name)(auth, input)
+        return successResult(isStoryTool(name) ? storyResult(value) : value)
       } catch (error) {
         return errorResult(error?.code)
       }
