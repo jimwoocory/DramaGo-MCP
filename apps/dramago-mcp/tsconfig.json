@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": ".",
+    "outDir": "dist",
+    "allowJs": true,
+    "checkJs": false,
+    "emitDeclarationOnly": true
+  },
+  "references": [
+    { "path": "../../packages/contracts" },
+    { "path": "../../packages/media-application" }
+  ],
+  "include": ["index.js", "media-ports.ts"]
+}
