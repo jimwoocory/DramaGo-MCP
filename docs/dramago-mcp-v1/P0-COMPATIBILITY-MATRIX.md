@@ -1,5 +1,8 @@
 # DramaGo MCP V1 — Relocation compatibility matrix
 
+> **Historical relocation intake record.** The fact layer and composition described below as future work have now landed in the integrated DramaGo-MCP relocation baseline. See [P1-INTEGRATED-STATUS.md](P1-INTEGRATED-STATUS.md) for current implementation status. P0 invariants and exclusions remain authoritative where not superseded.
+
+
 Status: compatibility requirements and attributed source observations, not target runtime certification. This contracts/docs/scripts/tests branch adds no Drama handlers, application, persistence or dispatcher. [P0-SOURCE-BASELINE.md](P0-SOURCE-BASELINE.md) records current pins and historical metadata separately.
 
 ## 1. Boundary and provenance

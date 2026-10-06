@@ -1,5 +1,8 @@
 # DramaGo MCP V1 — External USVDS stage mapping
 
+> **Historical relocation intake record.** The fact layer and composition described below as future work have now landed in the integrated DramaGo-MCP relocation baseline. See [P1-INTEGRATED-STATUS.md](P1-INTEGRATED-STATUS.md) for current implementation status. P0 invariants and exclusions remain authoritative where not superseded.
+
+
 Status: contract and adapter policy, not creative execution. This branch contains no stage invocation, Story runtime, Drama application/persistence or dispatcher. The new DramaGo-MCP repository owns composition; USVDS remains an external frozen read-only capability source.
 
 ## 1. Authority and interpretation

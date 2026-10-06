@@ -1,5 +1,8 @@
 # DramaGo MCP V1 — Relocation, migration and rollback policy
 
+> **Historical relocation intake record.** The fact layer and composition described below as future work have now landed in the integrated DramaGo-MCP relocation baseline. See [P1-INTEGRATED-STATUS.md](P1-INTEGRATED-STATUS.md) for current implementation status. P0 invariants and exclusions remain authoritative where not superseded.
+
+
 Status: bounded contract intake and future operational runbook. No database migration, cutover, runtime transplant or rollback has been executed by this documentation change. This branch delivers contracts/docs/scripts/tests, not Drama application/persistence/dispatcher or P2 runtime.
 
 ## 1. Source selection is not implementation
