@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dramago.invalid/p0/v1/planning-baseline.schema.json",
+  "title": "DramaGo P0 planning-baseline",
+  "x-immutable": true,
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "dramago.planning-baseline/v1"
+    },
+    "artifact_id": {
+      "$ref": "common.schema.json#/$defs/artifact_id"
+    },
+    "version_id": {
+      "$ref": "common.schema.json#/$defs/version_id"
+    },
+    "content_digest": {
+      "$ref": "common.schema.json#/$defs/content_digest"
+    },
+    "planning_baseline_id": {
+      "$ref": "common.schema.json#/$defs/stable_id"
+    },
+    "manifest": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": "dramago.planning-manifest/v1"
+        },
+        "workspace_id": {
+          "$ref": "common.schema.json#/$defs/stable_id"
+        },
+        "project_id": {
+          "$ref": "common.schema.json#/$defs/stable_id"
+        },
+        "range_id": {
+          "$ref": "common.schema.json#/$defs/stable_id"
+        },
+        "range_definition_ref": {
+          "$ref": "common.schema.json#/$defs/artifact_ref"
+        },
+        "story_foundation": {
+          "$ref": "common.schema.json#/$defs/artifact_ref"
+        },
+        "story_bible": {
+          "$ref": "common.schema.json#/$defs/artifact_ref"
+        },
+        "master_outline": {
+          "$ref": "common.schema.json#/$defs/artifact_ref"
+        },
+        "season_architecture": {
+          "$ref": "common.schema.json#/$defs/artifact_ref"
+        },
+        "ordered_episodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "episode_id": {
+                "$ref": "common.schema.json#/$defs/stable_id"
+              },
+              "outline_ref": {
+                "$ref": "common.schema.json#/$defs/artifact_ref"
+              }
+            },
+            "required": [
+              "episode_id",
+              "outline_ref"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "review_evidence": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "common.schema.json#/$defs/review_evidence"
+              },
+              {
+                "properties": {
+                  "outcome": {
+                    "const": "PASS"
+                  }
+                }
+              }
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "policy_version": {
+          "$ref": "common.schema.json#/$defs/policy_version"
+        }
+      },
+      "required": [
+        "schema_version",
+        "workspace_id",
+        "project_id",
+        "range_id",
+        "range_definition_ref",
+        "story_foundation",
+        "story_bible",
+        "master_outline",
+        "season_architecture",
+        "ordered_episodes",
+        "review_evidence",
+        "policy_version"
+      ],
+      "additionalProperties": false
+    },
+    "approval_refs": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/artifact_ref"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "created_at": {
+      "$ref": "common.schema.json#/$defs/timestamp"
+    }
+  },
+  "required": [
+    "schema_version",
+    "artifact_id",
+    "version_id",
+    "content_digest",
+    "planning_baseline_id",
+    "manifest",
+    "approval_refs",
+    "created_at"
+  ],
+  "additionalProperties": false,
+  "description": "Immutable published Planning Baseline. Ordered episode identity and its mandatory outline are one entry, never parallel optional lists. Exact range coverage and unique episode IDs additionally require cross-record validation."
+}

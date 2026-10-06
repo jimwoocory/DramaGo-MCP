@@ -1,0 +1,36 @@
+{
+  "schema_version": "dramago.approval-decision/v1",
+  "workspace_id": "ws_example",
+  "project_id": "project_example",
+  "approval_id": "approval_planning",
+  "decision": "approved",
+  "actor": {
+    "actor_type": "human",
+    "actor_id": "human_example",
+    "authorization_ref": {
+      "artifact_id": "art_authorization",
+      "version_id": "av_authorization_1",
+      "content_digest": "sha256:4c3fbe75c9053712b64a8d31219240f44e5982cbc60be63e1e99d3024e52ccbd"
+    }
+  },
+  "target_refs": [
+    {
+      "artifact_id": "art_planning_baseline",
+      "version_id": "av_planning_baseline_1",
+      "content_digest": "sha256:776cf05ce86a7e5f81bb15534b76977f9d935827722c6026292d87415efd1486"
+    }
+  ],
+  "evidence_refs": [
+    {
+      "artifact_id": "art_planning_review",
+      "version_id": "av_planning_review_1",
+      "content_digest": "sha256:2d4d5a13977d35cfadc1970d49354f2df108408ea5f2c1fa4a8df127ea6992fd"
+    }
+  ],
+  "policy_version": "creative-approval/v1",
+  "reason": "Synthetic fixture only; not real authorization.",
+  "decided_at": "2026-01-01T00:00:00Z",
+  "artifact_id": "art_approval_planning",
+  "version_id": "av_approval_planning_1",
+  "content_digest": "sha256:140db834e7b7b681de698f67a79fba026b88c242c49f307a86095fb89f564cb6"
+}

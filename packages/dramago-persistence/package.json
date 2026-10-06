@@ -1,0 +1,17 @@
+{
+  "name": "@xiaoshuren/dramago-persistence",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./memory.js": "./memory.js",
+    "./journal.js": "./journal.js",
+    "./postgres.js": "./postgres.js",
+    "./migrations/001_p1_fact_layer.sql": "./migrations/001_p1_fact_layer.sql"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

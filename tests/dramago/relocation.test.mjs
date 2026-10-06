@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { existsSync, readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+const root = new URL('../../', import.meta.url);
+test('standalone Drama contract package exports assets without runtime dependencies', () => {
+  const url = new URL('packages/dramago-contracts/package.json', root);
+  assert.ok(existsSync(url), 'missing relocated package');
+  const pkg = JSON.parse(readFileSync(url, 'utf8'));
+  assert.equal(pkg.name, '@dramago/contracts');
+  assert.equal(pkg.exports['./catalog'], './contracts/tool-catalog.v1.json');
+  assert.equal(pkg.exports['./contracts/*'], './contracts/*');
+  assert.deepEqual(pkg.dependencies ?? {}, {});
+  assert.equal(pkg.engines.node, '>=22');
+  const require = createRequire(url);
+  const catalog = require('@dramago/contracts/catalog');
+  assert.deepEqual(catalog, require('@dramago/contracts/contracts/tool-catalog.v1.json'));
+  const schema = require('@dramago/contracts/contracts/planning-baseline.schema.json');
+  assert.equal(schema['x-immutable'], true);
+});

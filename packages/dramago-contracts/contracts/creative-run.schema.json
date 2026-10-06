@@ -1,0 +1,245 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dramago.invalid/p0/v1/creative-run.schema.json",
+  "title": "DramaGo P0 creative-run",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "dramago.creative-run/v1"
+    },
+    "workspace_id": {
+      "$ref": "common.schema.json#/$defs/stable_id"
+    },
+    "project_id": {
+      "$ref": "common.schema.json#/$defs/stable_id"
+    },
+    "run_id": {
+      "$ref": "common.schema.json#/$defs/stable_id"
+    },
+    "domain": {
+      "enum": [
+        "story",
+        "script",
+        "production"
+      ]
+    },
+    "status": {
+      "enum": [
+        "queued",
+        "running",
+        "waiting_approval",
+        "succeeded",
+        "failed",
+        "cancelled"
+      ]
+    },
+    "input_manifest": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": "dramago.run-input-manifest/v1"
+        },
+        "policy_version": {
+          "$ref": "common.schema.json#/$defs/policy_version"
+        },
+        "input_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/artifact_ref"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "schema_version",
+        "policy_version",
+        "input_refs"
+      ],
+      "additionalProperties": false
+    },
+    "input_manifest_digest": {
+      "$ref": "common.schema.json#/$defs/content_digest"
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "step_id": {
+            "$ref": "common.schema.json#/$defs/stable_id"
+          },
+          "stage": {
+            "enum": [
+              "story.direction",
+              "story.adaptation",
+              "story.bible",
+              "story.master_outline",
+              "story.season_architecture",
+              "story.episode_outlines",
+              "story.planning_review",
+              "usvds.03",
+              "usvds.04",
+              "usvds.05",
+              "usvds.06",
+              "usvds.07",
+              "usvds.08",
+              "usvds.09"
+            ]
+          },
+          "attempts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "attempt": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "status": {
+                  "enum": [
+                    "queued",
+                    "running",
+                    "waiting_approval",
+                    "succeeded",
+                    "failed",
+                    "cancelled"
+                  ]
+                },
+                "input_manifest_digest": {
+                  "$ref": "common.schema.json#/$defs/content_digest"
+                },
+                "output_refs": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "common.schema.json#/$defs/artifact_ref"
+                  },
+                  "minItems": 0,
+                  "uniqueItems": true
+                }
+              },
+              "required": [
+                "attempt",
+                "status",
+                "input_manifest_digest",
+                "output_refs"
+              ],
+              "additionalProperties": false
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "step_id",
+          "stage",
+          "attempts"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "created_at": {
+      "$ref": "common.schema.json#/$defs/timestamp"
+    }
+  },
+  "required": [
+    "schema_version",
+    "workspace_id",
+    "project_id",
+    "run_id",
+    "domain",
+    "status",
+    "input_manifest",
+    "input_manifest_digest",
+    "steps",
+    "created_at"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "domain": {
+            "const": "story"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "steps": {
+            "items": {
+              "properties": {
+                "stage": {
+                  "enum": [
+                    "story.direction",
+                    "story.adaptation",
+                    "story.bible",
+                    "story.master_outline",
+                    "story.season_architecture",
+                    "story.episode_outlines",
+                    "story.planning_review"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "domain": {
+            "const": "script"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "steps": {
+            "items": {
+              "properties": {
+                "stage": {
+                  "enum": [
+                    "usvds.03",
+                    "usvds.04"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "domain": {
+            "const": "production"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "steps": {
+            "items": {
+              "properties": {
+                "stage": {
+                  "enum": [
+                    "usvds.05",
+                    "usvds.06",
+                    "usvds.07",
+                    "usvds.08",
+                    "usvds.09"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

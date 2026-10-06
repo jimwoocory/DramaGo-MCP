@@ -1,0 +1,18 @@
+{
+  "name": "@dramago/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "DramaGo immutable fact schemas, catalog and offline fixtures; no business runtime.",
+  "engines": {
+    "node": ">=22"
+  },
+  "exports": {
+    "./contracts/*": "./contracts/*",
+    "./catalog": "./contracts/tool-catalog.v1.json",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "contracts/"
+  ]
+}

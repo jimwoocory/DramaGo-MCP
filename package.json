@@ -1,12 +1,16 @@
 {
-  "name": "xiaoshuren-media-mcp",
+  "name": "dramago-mcp",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@9.15.4",
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b --pretty false",
-    "test": "vitest run tests"
+    "test:media": "vitest run tests --exclude \"tests/dramago/**\"",
+    "test:dramago-contracts": "node --test tests/dramago/contracts.test.mjs tests/dramago/relocation.test.mjs",
+    "check:dramago-contracts": "node scripts/validate-dramago-p0.mjs && python -B packages/dramago-contracts/contracts/validate_contracts.py",
+    "test:dramago": "vitest run tests/dramago --exclude \"tests/dramago/**/*.mjs\" && node --test tests/dramago/*.test.mjs tests/dramago/*.node.mjs",
+    "test": "pnpm run test:media && pnpm run test:dramago"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

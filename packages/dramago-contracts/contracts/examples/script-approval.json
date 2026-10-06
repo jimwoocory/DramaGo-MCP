@@ -1,0 +1,41 @@
+{
+  "schema_version": "dramago.approval-decision/v1",
+  "workspace_id": "ws_example",
+  "project_id": "project_example",
+  "approval_id": "approval_script",
+  "decision": "approved",
+  "actor": {
+    "actor_type": "human",
+    "actor_id": "human_example",
+    "authorization_ref": {
+      "artifact_id": "art_authorization",
+      "version_id": "av_authorization_1",
+      "content_digest": "sha256:4c3fbe75c9053712b64a8d31219240f44e5982cbc60be63e1e99d3024e52ccbd"
+    }
+  },
+  "target_refs": [
+    {
+      "artifact_id": "art_script_baseline",
+      "version_id": "av_script_baseline_1",
+      "content_digest": "sha256:34202e3d7865bfe66d1b80d64b45fa22a30bad127f7d00df28f5f25cd7b9df90"
+    }
+  ],
+  "evidence_refs": [
+    {
+      "artifact_id": "art_doctor_ep01",
+      "version_id": "av_doctor_ep01_1",
+      "content_digest": "sha256:0445a63ae311b556174f895a22aa3b19cf934a27263b7faf7f4be529fb363822"
+    },
+    {
+      "artifact_id": "art_continuity_ep01",
+      "version_id": "av_continuity_ep01_1",
+      "content_digest": "sha256:827c89656013910c9446e84f09a1b290f7d1d004f97f521dc6de96ee05591f3f"
+    }
+  ],
+  "policy_version": "creative-approval/v1",
+  "reason": "Synthetic fixture only; not real authorization.",
+  "decided_at": "2026-01-01T00:00:00Z",
+  "artifact_id": "art_approval_script",
+  "version_id": "av_approval_script_1",
+  "content_digest": "sha256:9b653c6456a10daeb0cfd77aa04ef020d40e2b4620db9ceb9ec5bcb206d9df1c"
+}

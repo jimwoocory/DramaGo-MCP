@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dramago.invalid/p0/v1/common.schema.json",
+  "title": "DramaGo P0 shared definitions",
+  "$comment": "Definition library, not an instance document; schema_version belongs on each record. No media-core imports.",
+  "$defs": {
+    "stable_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,127}(?![\\s\\S])",
+      "not": {
+        "enum": [
+          "latest",
+          "LATEST",
+          "head",
+          "HEAD",
+          "current",
+          "CURRENT"
+        ]
+      }
+    },
+    "artifact_id": {
+      "type": "string",
+      "pattern": "^art_[A-Za-z0-9][A-Za-z0-9_-]{0,123}(?![\\s\\S])"
+    },
+    "version_id": {
+      "type": "string",
+      "pattern": "^av_[A-Za-z0-9][A-Za-z0-9_-]{0,124}(?![\\s\\S])",
+      "description": "Opaque immutable Drama content-version ID, never Media Job.version, a counter, or a latest alias.",
+      "not": {
+        "pattern": "^av_([lL][aA][tT][eE][sS][tT]|[hH][eE][aA][dD]|[cC][uU][rR][rR][eE][nN][tT])(?![\\s\\S])"
+      }
+    },
+    "content_digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "policy_version": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*/v[1-9][0-9]*(?![\\s\\S])"
+    },
+    "external_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^\\S+(?![\\s\\S])",
+      "description": "Opaque Media-owned ID, preserved verbatim; not an artifact version."
+    },
+    "artifact_ref": {
+      "type": "object",
+      "properties": {
+        "artifact_id": {
+          "$ref": "common.schema.json#/$defs/artifact_id"
+        },
+        "version_id": {
+          "$ref": "common.schema.json#/$defs/version_id"
+        },
+        "content_digest": {
+          "$ref": "common.schema.json#/$defs/content_digest"
+        }
+      },
+      "required": [
+        "artifact_id",
+        "version_id",
+        "content_digest"
+      ],
+      "additionalProperties": false
+    },
+    "actor": {
+      "type": "object",
+      "properties": {
+        "actor_type": {
+          "enum": [
+            "human",
+            "service_authorized"
+          ]
+        },
+        "actor_id": {
+          "$ref": "common.schema.json#/$defs/stable_id"
+        },
+        "authorization_ref": {
+          "$ref": "common.schema.json#/$defs/artifact_ref"
+        }
+      },
+      "required": [
+        "actor_type",
+        "actor_id",
+        "authorization_ref"
+      ],
+      "additionalProperties": false
+    },
+    "review_evidence": {
+      "type": "object",
+      "properties": {
+        "evidence_ref": {
+          "$ref": "common.schema.json#/$defs/artifact_ref"
+        },
+        "subject_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/artifact_ref"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "outcome": {
+          "enum": [
+            "PASS",
+            "CLEAR",
+            "FAIL",
+            "BLOCKED"
+          ]
+        }
+      },
+      "required": [
+        "evidence_ref",
+        "subject_refs",
+        "outcome"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
