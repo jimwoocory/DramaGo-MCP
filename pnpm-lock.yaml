@@ -53,9 +53,9 @@ importers:
 
   packages/contracts: {}
 
-  packages/dramago-contracts: {}
-
   packages/dramago-application: {}
+
+  packages/dramago-contracts: {}
 
   packages/dramago-persistence: {}
 
