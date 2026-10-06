@@ -1,6 +1,7 @@
 {
   "files": [],
   "references": [
+    { "path": "packages/story-development" },
     { "path": "apps/dramago-mcp" },
     { "path": "packages/dramago-usvds-adapter" },
     {

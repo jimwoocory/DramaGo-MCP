@@ -145,6 +145,12 @@ importers:
         specifier: ^3.888.0
         version: 3.1146.0
 
+  packages/story-development:
+    dependencies:
+      '@xiaoshuren/dramago-application':
+        specifier: workspace:*
+        version: link:../dramago-application
+
   packages/workers:
     dependencies:
       '@xiaoshuren/contracts':

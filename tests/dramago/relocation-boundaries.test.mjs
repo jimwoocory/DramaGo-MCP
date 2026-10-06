@@ -53,7 +53,8 @@ test('fact packages have only Node and package-local runtime imports', () => {
     const directory = join(packages, name)
     assert.deepEqual(dependencies(directory), [], `${name} uses injected repository/authorization/pool ports`)
     for (const path of files(directory).filter(path => codeFile.test(path))) {
-      assert.equal(path.endsWith('.js'), true, `retain ESM JavaScript: ${path}`)
+      // Declarations add no runtime; executable fact code must remain ESM JS.
+      assert.equal(path.endsWith('.js') || path.endsWith('.d.ts'), true, `retain ESM JavaScript or type declarations: ${path}`)
       for (const specifier of moduleReferences(readFileSync(path, 'utf8'))) {
         assert.equal(forbiddenHost.test(specifier), false, `${path}: ${specifier}`)
         if (specifier.startsWith('node:')) continue
