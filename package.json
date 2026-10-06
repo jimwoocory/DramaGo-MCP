@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b --pretty false",
-    "test:story-runtime": "vitest run tests/dramago/story-development.test.ts tests/dramago/story-revision.test.ts",
+    "test:story-runtime": "vitest run tests/dramago/story-development.test.ts tests/dramago/story-revision.test.ts tests/dramago/story-content-validation.test.ts tests/dramago/story-runtime-conformance.test.ts",
     "test:media": "vitest run tests --exclude \"tests/dramago/**\"",
     "test:dramago-contracts": "node --test tests/dramago/contracts.test.mjs tests/dramago/relocation.test.mjs tests/dramago/p2-story*.test.mjs",
     "test:dramago-story-contracts": "node --test tests/dramago/p2-story*.test.mjs",

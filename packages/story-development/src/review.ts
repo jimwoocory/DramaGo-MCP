@@ -1,55 +1,36 @@
-import { equal, canonicalHash } from '@xiaoshuren/dramago-application/domain.js'
-import type { ArtifactRef, ArtifactRole, ArtifactVersion, PlanningScope, ProjectFact, ReviewResult, StoryRepository } from './ports.js'
-import { check, exact, ref, uniqueRefs } from './validation.js'
-import { artifactRole, contentObject, roleKind } from './policy.js'
+import { canonicalHash, equal } from '@xiaoshuren/dramago-application/domain.js'
+import type { ArtifactRef, ArtifactVersion, RunContext } from './ports.js'
+import { check } from './validation.js'
+import { contentObject } from './policy.js'
+import { contextOf, resolveIn } from './dependencies.js'
+import { policy } from './contracts.js'
 
-export async function planningInputs(tx: StoryRepository, project: ProjectFact, scope: PlanningScope) {
-  check(scope && typeof scope === 'object', 'planning scope required')
-  check(Array.isArray(scope.ordered_episodes) && equal(scope.ordered_episodes.map(e => e.episode_id), project.planning_range.ordered_episode_ids), 'complete ordered episode scope required')
-  const roles: [ArtifactRole, ArtifactRef][] = [
-    ['story_foundation', scope.story_foundation], ['story_bible', scope.story_bible],
-    ['master_outline', scope.master_outline], ['season_architecture', scope.season_architecture],
-    ...scope.ordered_episodes.map(e => ['episode_outline', e.outline_ref] as [ArtifactRole, ArtifactRef]),
-    ['direction', scope.direction_ref], ['episode_outline_set', scope.episode_outline_set_ref],
-  ]
-  const range = await exact(tx, project, project.planning_range.definition_ref)
-  check(range.kind === 'planning_range', 'range definition required')
-  const inputs = [range]
-  for (const [role, requested] of roles) {
-    const v = await exact(tx, project, requested)
-    check(v.kind === roleKind(role) && artifactRole(v) === role, `invalid ${role} artifact`)
-    inputs.push(v)
-  }
-  const subjectRefs = [ref(range), ...roles.slice(0, 4 + scope.ordered_episodes.length).map(([, r]) => r)]
-  const contextRefs = [scope.direction_ref, scope.episode_outline_set_ref]
-  check(uniqueRefs([...subjectRefs, ...contextRefs]).length === inputs.length, 'duplicate planning subjects')
-  for (const episode of scope.ordered_episodes) {
-    const outline = inputs.find(v => equal(ref(v), episode.outline_ref))!
-    check(outline.episode_id === episode.episode_id, 'outline episode identity mismatch')
-  }
-  const set = inputs.at(-1)!
-  check(equal(contentObject(set).ordered_episodes, scope.ordered_episodes), 'episode set does not bind exact scope')
-  return { inputs, subjectRefs, contextRefs }
+export function reviewScope(c: RunContext, artifacts: ArtifactVersion[]) {
+  const set = resolveIn(artifacts, c.bindings.episode_outline_set)
+  const episodes = (contentObject(set).ordered_episodes as unknown as { outline_ref: ArtifactRef }[]).map(e => e.outline_ref)
+  check(c.research.status === 'supplied', 'review requires research')
+  const subjects = [c.planning_scope.definition_ref, ...['story_foundation', 'story_bible', 'master_outline', 'season_architecture'].map(n => c.bindings[n]), ...episodes]
+  const inspected = [c.planning_scope.definition_ref, ...policy.steps.planning_review.required_bindings.map(n => c.bindings[n]), ...episodes, c.research.snapshot_ref]
+  const writers = [...new Set(inspected.map(r => contentObject(resolveIn(artifacts, r)).run_context_ref)
+    .filter(Boolean).map(r => contextOf(resolveIn(artifacts, r as unknown as ArtifactRef)).executor.executor_id))].sort()
+  return { subjects, inspected, writers }
 }
-export function reviewValid(result: ReviewResult, subjects: ArtifactRef[], context: ArtifactRef[]) {
-  const valid = (condition: unknown) => check(condition, 'invalid or incomplete review evidence', 'INVALID_REVIEW_OUTPUT')
-  valid(result && Object.keys(result).sort().join(',') === 'blockers,context_refs,findings,outcome,subject_refs')
-  valid(equal(result.subject_refs, subjects) && equal(result.context_refs, context))
-  valid(['PASS', 'FAIL', 'BLOCKED'].includes(result.outcome) && Array.isArray(result.findings) && Array.isArray(result.blockers))
-  const reviewed = new Set([...subjects, ...context].map(r => canonicalHash(r)))
-  const codes = new Set<string>()
+export function independentReviewer(identity: string, c: RunContext, artifacts: ArtifactVersion[]) {
+  check(!reviewScope(c, artifacts).writers.includes(identity), 'reviewer authored a subject', 'ROLE_SEPARATION')
+}
+export function reviewValid(v: ArtifactVersion, c: RunContext, artifacts: ArtifactVersion[]) {
+  const code = 'INVALID_REVIEW_OUTPUT', result = contentObject(v) as any
+  const { subjects, inspected, writers } = reviewScope(c, artifacts)
+  check(equal(result.subject_refs, subjects) && equal(result.inspected_refs, inspected), 'incomplete exact review subjects', code)
+  check(result.reviewer_id === c.executor.executor_id && equal(result.reviewed_writer_ids, writers), 'review identity mismatch', code)
+  check(!writers.includes(result.reviewer_id), 'reviewer authored a subject', code)
+  const ids = new Set<string>(), allowed = new Set(inspected.map(canonicalHash))
   for (const finding of result.findings) {
-    valid(finding && Object.keys(finding).sort().join(',') === 'code,message,severity,subject_refs')
-    valid(typeof finding.code === 'string' && finding.code.trim() && !codes.has(finding.code))
-    codes.add(finding.code)
-    valid(typeof finding.message === 'string' && finding.message.trim() && ['info', 'warning', 'blocker'].includes(finding.severity))
-    valid(Array.isArray(finding.subject_refs) && finding.subject_refs.length && uniqueRefs(finding.subject_refs).length === finding.subject_refs.length)
-    valid(finding.subject_refs.every(r => reviewed.has(canonicalHash(r))))
+    check(!ids.has(finding.finding_id), 'duplicate finding_id', code)
+    ids.add(finding.finding_id)
+    check(finding.subject_refs.every((r: ArtifactRef) => allowed.has(canonicalHash(r))), 'finding subject outside inspected scope', code)
   }
-  const blockers = result.findings.filter(f => f.severity === 'blocker').map(f => f.code)
-  valid(equal(result.blockers, blockers))
-  valid(result.outcome === 'PASS' ? blockers.length === 0 : blockers.length > 0)
-}
-export function independentReviewer(identity: string, inputs: ArtifactVersion[]) {
-  for (const v of inputs) check(contentObject(v).generated_by !== identity, 'reviewer authored a subject', 'ROLE_SEPARATION')
+  const blockers = result.findings.filter((f: any) => f.severity === 'blocker').map((f: any) => f.finding_id)
+  check(equal(result.blockers, blockers), 'blocker IDs must match finding order', code)
+  check(result.outcome === 'PASS' ? blockers.length === 0 : blockers.length > 0, 'invalid review outcome/blockers', code)
 }

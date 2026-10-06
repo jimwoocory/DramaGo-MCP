@@ -3,6 +3,17 @@ import test from 'node:test';
 import { existsSync } from 'node:fs';
 import { storyFixture, exactRef, reseal } from './helpers/p2-story-fixtures.mjs';
 import { canonicalHash } from '../../packages/dramago-application/domain.js';
+import { contentAttacks } from './helpers/story-content-attacks.mjs';
+
+for (const attack of contentAttacks) {
+  test(`shared runtime validator rejects resealed ${attack.name}`, async () => {
+    const { checkBundle } = await oracle(), b = storyFixture();
+    checkBundle(b);
+    attack.mutate(artifact(b, attack.target).content, b.artifacts);
+    rehash(b);
+    assert.throws(() => checkBundle(b), attack.message);
+  });
+}
 
 const helper = new URL('./helpers/p2-story-conformance.mjs', import.meta.url);
 async function oracle() {
@@ -66,7 +77,7 @@ test('season and set cannot silently revise declared ordered scope', async () =>
 test('direction claims must exist in the frozen research snapshot', async () => {
   const { checkBundle } = await oracle(); const b = storyFixture();
   artifact(b, 'direction').content.market_claim_ids = ['invented_claim']; rehash(b);
-  assert.throws(() => checkBundle(b), /direction research claim/);
+  assert.throws(() => checkBundle(b), /direction claim missing from exact context research/);
 });
 
 test('direction without research accepts no claims and rejects invented research claims', async () => {
@@ -95,7 +106,7 @@ test('required research cannot be omitted and missing provenance cannot support 
   artifact(missing, 'context_bible').content.research = { status: 'omitted', reason: 'Unavailable' }; rehash(missing);
   assert.throws(() => checkBundle(missing), /run_context/);
   const invented = storyFixture(); artifact(invented, 'research').content.claims[0].source_ids = ['nonexistent']; rehash(invented);
-  assert.throws(() => checkBundle(invented), /research source/);
+  assert.throws(() => checkBundle(invented), /research claim references missing source/);
 });
 
 for (const [name, mutate, message] of [

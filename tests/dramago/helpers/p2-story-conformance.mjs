@@ -1,22 +1,10 @@
-// Offline cross-record contract oracle for synthetic fixtures, NOT a service,
-// repository, schema engine, authorization verifier or production validator.
+// Offline cross-record oracle. Content schema/semantics use the actual runtime
+// validator; receipt, graph and candidate assertions remain independent checks.
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
-import { createInstanceValidator } from '../../../scripts/dramago-schema-instances.mjs';
 import { canonicalHash } from '../../../packages/dramago-application/domain.js';
 import { exactRef } from './p2-story-fixtures.mjs';
-
-const directory = new URL('../../../packages/dramago-contracts/contracts/', import.meta.url);
-const read = name => JSON.parse(readFileSync(new URL(name, directory), 'utf8'));
-const library = 'story-development.schema.json';
-const definitions = read(library).$defs;
-export const policy = read('story-development-policy.v1.json');
-const schemas = new Map(readdirSync(directory).filter(f => f.endsWith('.schema.json')).map(f => [f, read(f)]));
-for (const name of Object.keys(definitions)) schemas.set(`${name}.fixture.schema.json`, { $ref: `${library}#/$defs/${name}` });
-const validator = createInstanceValidator(schemas);
-assert.deepEqual(validator.errors, []);
-const shape = (name, value) => assert.deepEqual(validator.validate(value, schemas.has(name) ? name : `${name}.fixture.schema.json`), [], `shape: ${name}`);
-const contentType = value => value?.schema_version && Object.entries(definitions).find(([, d]) => d.properties?.schema_version?.const === value.schema_version)?.[0];
+import { policy, assertShape as shape, contentType, validateContent, researchSnapshot } from '../../../packages/dramago-contracts/story-validator.mjs';
+export { policy };
 const same = (a, b, message) => assert.deepEqual(a, b, message);
 const unique = (values, message) => assert.equal(new Set(values).size, values.length, message);
 const walkRefs = (value, visit) => {
@@ -84,6 +72,8 @@ export function checkBundle({ project, artifacts, runs, candidate }) {
   };
   for (const a of artifacts) {
     const c = a.content, type = contentType(c);
+    if (c.run_context_ref) validateContent(a, typed(c.run_context_ref, 'run_context').content, artifacts);
+    if (type === 'research_snapshot') researchSnapshot(a, true);
     if (c.planning_scope) same(c.planning_scope, declared, 'exact declared scope');
     if (type === 'episode_outline_set') {
       same(c.ordered_episodes.map(e => e.episode_id), declared.ordered_episode_ids, 'episode coverage and order');
