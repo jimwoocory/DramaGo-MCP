@@ -10,7 +10,7 @@ async function load() {
   return import(moduleUrl)
 }
 
-test('only injected allowlisted handlers are callable; P2 and workbench stay declared', async () => {
+test('only injected allowlisted handlers are callable; unconfigured Story and workbench stay declared', async () => {
   const { createDramaGoMcp } = await load()
   const catalog = structuredClone(fixtureCatalog)
   const app = createDramaGoMcp({ catalog, services: {

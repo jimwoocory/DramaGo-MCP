@@ -5,6 +5,6 @@
   "type": "module",
   "description": "Internal DramaGo dispatcher and local composition adapters; no MCP transport",
   "exports": { ".": "./index.js", "./media-ports": "./media-ports.ts" },
-  "scripts": { "build": "tsc -b", "typecheck": "tsc -b --pretty false", "test": "node --test ../../tests/dramago/composition.node.mjs" },
+  "scripts": { "build": "tsc -b", "typecheck": "tsc -b --pretty false", "test": "node --test ../../tests/dramago/composition.node.mjs ../../tests/dramago/story-composition.node.mjs" },
   "dependencies": { "@xiaoshuren/contracts": "workspace:*", "@xiaoshuren/media-application": "workspace:*" }
 }

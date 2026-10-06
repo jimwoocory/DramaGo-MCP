@@ -117,11 +117,18 @@ function successResult(value) {
   }
 }
 
-export function createDramaGoMcp({ catalog: suppliedCatalog = loadCatalog(), services = {}, mediaPorts = {}, authorize } = {}) {
+export function createDramaGoMcp({ catalog: suppliedCatalog = loadCatalog(), services = {},
+  storyService = /** @type {import('./story-ports.js').StoryService} */ ({}), mediaPorts = {}, authorize } = {}) {
   const catalog = catalogSnapshot(suppliedCatalog)
   const handlers = new Map()
   for (const [name, method] of Object.entries(factMethods)) {
     if (typeof services[method] === 'function') handlers.set(name, services[method].bind(services))
+  }
+  if (typeof storyService?.writer?.runStoryStep === 'function') {
+    handlers.set('dramago_story_step_run', storyService.writer.runStoryStep.bind(storyService.writer))
+  }
+  if (typeof storyService?.reviewer?.reviewPlanning === 'function') {
+    handlers.set('dramago_planning_review', storyService.reviewer.reviewPlanning.bind(storyService.reviewer))
   }
   const mediaHandlers = new Map()
   for (const name of MEDIA_TOOL_NAMES) {

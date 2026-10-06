@@ -12,5 +12,5 @@
     { "path": "../../packages/contracts" },
     { "path": "../../packages/media-application" }
   ],
-  "include": ["index.js", "media-ports.ts"]
+  "include": ["index.js", "media-ports.ts", "story-ports.ts"]
 }
