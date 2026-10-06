@@ -1,0 +1,51 @@
+{
+  "schema_version": "dramago.creative-run/v1",
+  "workspace_id": "ws_example",
+  "project_id": "project_example",
+  "run_id": "run_example",
+  "domain": "script",
+  "status": "succeeded",
+  "input_manifest": {
+    "schema_version": "dramago.run-input-manifest/v1",
+    "policy_version": "script-run/v1",
+    "input_refs": [
+      {
+        "artifact_id": "art_planning_baseline",
+        "version_id": "av_planning_baseline_1",
+        "content_digest": "sha256:776cf05ce86a7e5f81bb15534b76977f9d935827722c6026292d87415efd1486"
+      },
+      {
+        "artifact_id": "art_outline_ep01",
+        "version_id": "av_outline_ep01_1",
+        "content_digest": "sha256:97f6baacb291b033814c2d4a794532203f46e5bc053d1b4a0ffc352c9123ddc7"
+      },
+      {
+        "artifact_id": "art_continuity_input",
+        "version_id": "av_continuity_input_1",
+        "content_digest": "sha256:d9d9090248dce9784a471a5d1bb5773c5a4d2afc694b005804a102c75649dc8b"
+      }
+    ]
+  },
+  "input_manifest_digest": "sha256:29666b2baf3c062673e67cb5fb5f84c69c675b6e5b80e7375c2f29101f749265",
+  "steps": [
+    {
+      "step_id": "step_draft",
+      "stage": "usvds.03",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "succeeded",
+          "input_manifest_digest": "sha256:29666b2baf3c062673e67cb5fb5f84c69c675b6e5b80e7375c2f29101f749265",
+          "output_refs": [
+            {
+              "artifact_id": "art_screenplay_ep01",
+              "version_id": "av_screenplay_ep01_1",
+              "content_digest": "sha256:a6437a58f16af8ae02c600836ac7e04b22dc99e80c841ee1ff909d9dcc4a2a7b"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "created_at": "2026-01-01T00:00:00Z"
+}

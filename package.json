@@ -8,7 +8,8 @@
     "typecheck": "tsc -b --pretty false",
     "test": "vitest run tests --exclude \"tests/dramago/**\"",
     "check:dramago-contracts": "node scripts/validate-dramago-p0.mjs && python -B packages/dramago-contracts/contracts/validate_contracts.py",
-    "test:dramago-contracts": "node --test tests/dramago/*.test.mjs"
+    "test:dramago-contracts": "node --test tests/dramago/contracts.test.mjs tests/dramago/relocation.test.mjs",
+    "test:dramago": "node --test tests/dramago/*.test.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
