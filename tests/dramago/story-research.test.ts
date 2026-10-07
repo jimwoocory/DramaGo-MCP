@@ -67,6 +67,49 @@ describe('Story research provenance', () => {
     expect(run.status).toBe('succeeded')
     expect(outputs[0].content.market_claim_ids).toEqual(['claim_1'])
   })
+  it('retains direction claims from research A when adaptation selects research B', async () => {
+    const s = await runtimeSetup({
+      generate: async (request: any, generate: any) => {
+        const bundle = await generate(request)
+        bundle.proposals = bundle.proposals.map((v: any) => v.content.schema_version === 'dramago.direction/v1'
+          ? seal({ ...v, content: { ...v.content, market_claim_ids: ['claim_1'] } }) : v)
+        return bundle
+      },
+    })
+    const a = await s.put(snapshot())
+    const bContent = snapshot(); bContent.claims[0].claim_id = 'claim_2'
+    const b = await s.put(bContent)
+    const direction = await s.execute('direction', await s.command('direction', {
+      research: { status: 'supplied', snapshot_ref: ref(a) },
+    }))
+    expect(direction.run.status).toBe('succeeded')
+    const adaptation = await s.execute('adaptation', await s.command('adaptation', {
+      research: { status: 'supplied', snapshot_ref: ref(b) },
+    }))
+    expect(adaptation.run.status).toBe('succeeded')
+    expect(s.calls[1].artifacts).toEqual(expect.arrayContaining([a, b, direction.outputs[0]]))
+    expect(await s.store.getArtifactVersion(direction.outputs[0].version_id)).toEqual(direction.outputs[0])
+    expect(adaptation.outputs[0].content.dependency_refs).toContainEqual(ref(b))
+    expect(s.researchCalls.map((r: any) => r.snapshot_ref)).toEqual([ref(a), ref(b)])
+  })
+  it('does not let current output borrow claim support from retained research A', async () => {
+    const s = await setup(snapshot(), {}, { market_claim_ids: ['claim_1'] })
+    const direction = await s.run()
+    expect(direction.run.status).toBe('succeeded')
+    const bContent = snapshot(); bContent.claims[0].claim_id = 'claim_2'
+    const b = await s.put(bContent)
+    const current = await s.execute('direction', await s.command('direction', {
+      research: { status: 'supplied', snapshot_ref: ref(b) },
+      source_refs: [ref(direction.outputs[0])],
+    }))
+    expect(s.calls).toHaveLength(2)
+    expect(s.calls[1].artifacts).toContainEqual(s.selected)
+    expect(current.run.status).toBe('failed')
+    expect(current.outputs).toEqual([])
+    expect([...s.store._state.audit.values()]).toContainEqual(expect.objectContaining({
+      creative_run_id: current.run.run_id, error_code: 'INVALID_GENERATION_OUTPUT',
+    }))
+  })
   it('permits empty market claims without research', async () => {
     const s = await setup(null, {}, { market_claim_ids: [] })
     expect((await s.run()).run.status).toBe('succeeded')

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { canonicalHash } from '../../packages/dramago-application/index.js'
 import { independentReviewer } from '../../packages/story-development/src/review.js'
 import { trustedWriter } from '../../packages/story-development/src/authorship.js'
-import { resolveDependencies } from '../../packages/story-development/src/dependencies.js'
+import { executionId, resolveDependencies, validateContext } from '../../packages/story-development/src/dependencies.js'
 import { setup, ref } from './helpers/story-runtime.js'
 
 async function fixture() {
@@ -139,6 +139,23 @@ describe('trusted Story authorship', () => {
     await expect(s.verify(inputs.filter((v: any) => v.version_id !== s.idea.version_id))).resolves.toBeUndefined()
     await expect(s.verify([s.output, ...inputs])).rejects.toMatchObject({ code: 'ROLE_SEPARATION' })
     await expect(s.verify([s.output, ...inputs], attestIdea(s))).resolves.toBeUndefined()
+  })
+  it('rejects creative content laundered as configuration of an unexecuted context before review', async () => {
+    const s = await setup()
+    for (const result of await s.fullStory()) expect(result.run.status).toBe('succeeded')
+    const imported = await s.put({ text: 'Unattested creative material disguised as executor configuration' })
+    const unused = await s.command('direction', {
+      executor: { role: 'writer', executor_id: 'writer_a', configuration_ref: ref(imported) },
+    })
+    const context = await s.store.getArtifactVersion(unused.context_ref.version_id)
+    const graph = await resolveDependencies(s.store, s.project, [unused.context_ref])
+    expect(() => validateContext(context, graph)).not.toThrow()
+    expect(await s.store.getRun(executionId(unused.context_ref))).toBeFalsy()
+    const command = await s.command('planning_review', { source_refs: [unused.context_ref] })
+    const before = structuredClone(s.store._state)
+    await expect(s.execute('planning_review', command)).rejects.toMatchObject({ code: 'ROLE_SEPARATION' })
+    expect(s.reviewCalls).toEqual([])
+    expect(s.store._state).toEqual(before)
   })
   it('requires attestation for every transitive imported source, not just bound ideas', async () => {
     const s = await fixture()

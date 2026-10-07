@@ -254,14 +254,14 @@ export class ApprovalService {
     assertAuthContext(auth); required(input.project_id,'project_id'); nonnegative(input.expected_revision,'expected_revision')
     assertActor(auth, input.approval)
     const action = kind === 'planning' ? 'story.approve' : 'script.approve'
-    await this.store.authorize(auth, action, { project_id: input.project_id, workspace_id: input.workspace_id ?? auth.defaultWorkspaceId })
     const scope = { project_id: input.project_id, command: `${kind}.baseline.approve` }
     const payload = { baseline: input.baseline, approval: input.approval, expected_revision: input.expected_revision }
     return this.store.transaction(async store => {
-      const replayed = await replay(store, scope, input.idempotency_key, payload)
-      if (replayed.result) return replayed.result
       const project = await store.getProject(input.project_id)
       if (!project) throw new DomainError('NOT_FOUND','project not found')
+      await store.authorize(auth, action, { project_id: project.project_id, workspace_id: project.workspace_id })
+      const replayed = await replay(store, scope, input.idempotency_key, payload)
+      if (replayed.result) return replayed.result
       const baseline = snapshot(input.baseline)
       if (baseline?.manifest?.project_id !== project.project_id || baseline?.manifest?.workspace_id !== project.workspace_id) throw new DomainError('VALIDATION_ERROR','baseline ownership mismatch')
       let evidence = []
@@ -337,15 +337,15 @@ export class ApprovalService {
   }
   async revokeApproval(auth, input) {
     assertAuthContext(auth); required(input.project_id,'project_id'); nonnegative(input.expected_revision,'expected_revision')
-    await this.store.authorize(auth,'project.approval_revoke',{ project_id:input.project_id, workspace_id:input.workspace_id ?? auth.defaultWorkspaceId })
     assertActor(auth, input.approval)
     const scope={ project_id:input.project_id, command:'approval.revoke' }
     const payload={ approval:input.approval, expected_revision:input.expected_revision }
     return this.store.transaction(async store => {
+      const project=await store.getProject(input.project_id); if(!project) throw new DomainError('NOT_FOUND','project not found')
+      await store.authorize(auth,'project.approval_revoke',{ project_id:project.project_id, workspace_id:project.workspace_id })
       const replayed=await replay(store,scope,input.idempotency_key,payload)
       if (replayed.result) return replayed.result
       if (input.approval?.decision !== 'revoked' || !input.approval.revoked_decision_ref) throw new DomainError('APPROVAL_INVALID','revocation decision required')
-      const project=await store.getProject(input.project_id); if(!project) throw new DomainError('NOT_FOUND','project not found')
       assertDecisionOwner(input.approval, project)
       const targets = input.approval.target_refs
       if (!Array.isArray(targets) || targets.length !== 1) throw new DomainError('APPROVAL_INVALID','exact revocation target required')
@@ -365,9 +365,9 @@ export class ApprovalService {
   }
   async getApproval(auth,input) {
     assertAuthContext(auth)
-    await this.store.authorize(auth,'project.read',{ project_id:input.project_id, workspace_id:input.workspace_id ?? auth.defaultWorkspaceId })
     const project = await this.store.getProject(required(input.project_id, 'project_id'))
     if (!project) throw new DomainError('NOT_FOUND', 'project not found')
+    await this.store.authorize(auth,'project.read',{ project_id:project.project_id, workspace_id:project.workspace_id })
     const approvals=await this.store.listApprovals(input.target_ref)
     for (const decision of approvals) assertDecisionOwner(decision, project)
     if (!approvals.length) throw new DomainError('NOT_FOUND','approval not found')

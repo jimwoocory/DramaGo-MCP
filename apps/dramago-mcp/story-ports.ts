@@ -77,17 +77,19 @@ export function createLocalStoryPorts(service: StoryDevelopmentService, facts: F
     check(context.kind === 'other_drama', 'run context kind required');
     const c: unknown = context.content;
     keys(c, definitions.run_context.required);
-    check(c.schema_version === 'dramago.story-run-context/v1' && c.policy_version === policy.policy_version && c.operation === operation, 'context operation/policy mismatch');
-    check(c.project_revision === command.expected_revision, 'context revision mismatch');
+    check(c.schema_version === 'dramago.story-run-context/v1' && c.policy_version === policy.policy_version && Object.hasOwn(policy.steps, c.operation), 'context operation/policy mismatch');
+    // Inspect the stored context, not its compatibility with this command.
+    // Operation/revision mismatches must reach authoritative idempotency first.
+    const contextPolicy = policy.steps[c.operation];
     keys(c.planning_scope, ['range_id', 'definition_ref', 'ordered_episode_ids']);
     stable(c.planning_scope.range_id); exactRef(c.planning_scope.definition_ref);
     check(Array.isArray(c.planning_scope.ordered_episode_ids) && c.planning_scope.ordered_episode_ids.length > 0 && new Set(c.planning_scope.ordered_episode_ids).size === c.planning_scope.ordered_episode_ids.length, 'ordered episode scope required');
     c.planning_scope.ordered_episode_ids.forEach(stable);
     text(c.instructions);
     keys(c.executor, ['role', 'executor_id', 'configuration_ref']);
-    check(c.executor.role === (operation === 'planning_review' ? 'reviewer' : 'writer'), 'executor role mismatch');
+    check(c.executor.role === (c.operation === 'planning_review' ? 'reviewer' : 'writer'), 'executor role mismatch');
     stable(c.executor.executor_id);
-    keys(c.bindings, policy.steps[operation].required_bindings);
+    keys(c.bindings, contextPolicy.required_bindings);
     check(Array.isArray(c.source_refs), 'source refs required');
     c.source_refs.forEach(exactRef);
     check(unique(c.source_refs).length === c.source_refs.length, 'duplicate source refs');
@@ -97,7 +99,7 @@ export function createLocalStoryPorts(service: StoryDevelopmentService, facts: F
       keys(c.research, ['status', 'snapshot_ref']); exactRef(c.research.snapshot_ref); research = c.research.snapshot_ref;
     } else {
       keys(c.research, ['status', 'reason']); text(c.research.reason);
-      check(c.research.status === 'omitted' && policy.steps[operation].research === 'optional', 'required research snapshot missing');
+      check(c.research.status === 'omitted' && contextPolicy.research === 'optional', 'required research snapshot missing');
     }
     const refs = unique([command.context_ref, c.planning_scope.definition_ref, c.executor.configuration_ref, ...Object.values(c.bindings) as ArtifactRef[], ...c.source_refs, ...(research ? [research] : [])]);
     for (const r of refs) await resolve(r);

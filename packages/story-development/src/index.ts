@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { canonicalHash, snapshot, equal, DomainError } from '@xiaoshuren/dramago-application/domain.js'
-import type { ArtifactVersion, AuthContext, Command, CreativeRun, GenerationRequest, JsonObject, PlanningReviewInput, ProjectFact, RunContext, RunResult, RunStepInput, StoryOptions, StoryRepository } from './ports.js'
+import type { ArtifactRef, ArtifactVersion, AuthContext, Command, CreativeRun, GenerationRequest, JsonObject, PlanningReviewInput, ProjectFact, RunContext, RunResult, RunStepInput, StoryOptions, StoryRepository } from './ports.js'
 import { check, commandValid, exact, freeze, projectAt, ref, reference, text, uniqueRefs } from './validation.js'
 import { STORY_POLICY_VERSION, artifactRole, contentObject, researchSnapshot, marketClaimsValid, validateContent } from './policy.js'
 import { assertShape, policy } from './contracts.js'
@@ -80,11 +80,16 @@ export class StoryDevelopmentService {
       validateContext(context, artifacts)
       await validateGraph(tx, artifacts, this.options.allowSyntheticResearch === true)
       coherentBindings(c, artifacts)
-      const researchArtifact = c.research.status === 'supplied' ? resolveIn(artifacts, c.research.snapshot_ref) : undefined
-      for (const input of artifacts) marketClaimsValid(input.content, researchArtifact)
+      for (const input of artifacts) {
+        // validateGraph has verified generated inputs and their exact provenance.
+        // Retained output claims belong to that frozen context, not today's run.
+        const contextRef = contentObject(input).run_context_ref
+        const provenance = contextRef ? contextOf(resolveIn(artifacts, contextRef as unknown as ArtifactRef)) : c
+        marketClaimsValid(input.content, provenance.research.status === 'supplied' ? resolveIn(artifacts, provenance.research.snapshot_ref) : undefined)
+      }
       if (isReview) await independentReviewer(tx, project, executor.identity, artifacts,
         this.options.authorship ? { attest: request => this.bounded(signal => this.options.authorship!.attest(request, signal)) } : undefined,
-        this.options.allowSyntheticResearch === true)
+        this.options.allowSyntheticResearch === true, [this.options.generation.configuration_ref, this.options.review.configuration_ref])
       if (c.research.status === 'supplied') {
         const selected = resolveIn(artifacts, c.research.snapshot_ref)
         const request = { workspace_id: project.workspace_id, project_id: project.project_id, snapshot_ref: c.research.snapshot_ref }

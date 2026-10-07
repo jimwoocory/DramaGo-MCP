@@ -36,6 +36,38 @@ function check(condition, message, code = "VALIDATION_ERROR") { if (!condition)
 export const roleKind = (role) => policy.content_kinds[role];
 export const contentObject = (v) => typeof v.content === 'object' && v.content !== null && !Array.isArray(v.content) ? v.content : {};
 export const artifactRole = (v) => contentType(v.content);
+// Inspect generated planning content, not imported ideas, research or reviewer
+// quotations. Derive the roles from the same published policy used by runtime.
+const planningRoles = new Set(Object.values(policy.steps)
+    .filter(step => step.port === 'StoryGenerationPort').flatMap(step => step.outputs));
+// These are planning labels, not speaker cues, even when capitalized.
+const planningLabels = new Set(['ACT', 'ACTION', 'ARC', 'BEAT', 'CHARACTER', 'CONFLICT', 'CONSTRAINTS',
+    'DECISION', 'EPISODE', 'GOAL', 'HOOK', 'LOGLINE', 'MOTIVATION', 'NOTE', 'NOTES', 'OUTCOME',
+    'PAYOFF', 'PREMISE', 'RISK', 'SCENE', 'SETTING', 'SETUP', 'STAKES', 'SUMMARY', 'THEME', 'TODO', 'TONE']);
+function assertPlanningStrings(value, code) {
+    if (typeof value === 'string') {
+        // Deliberately conservative, not a general screenplay classifier. A lone
+        // NAME: synopsis is ambiguous; require quoted speech or adjacent cues
+        // with direct-address speech, not merely a list of character summaries.
+        // Line anchors preserve ordinary prose discussing INT./EXT. or CUT TO:.
+        let previousCue = false, previousSpeech = false;
+        for (const line of value.split(/[\x0a\x0d]/).map(line => line.trim())) {
+            if (!line) continue;
+            const slugline = /^(?:INT\.(?:\/EXT\.)?|EXT\.|INT\/EXT\.)[ \t]+[A-Z0-9][A-Z0-9 .,'’()\/&–—-]*$/.test(line);
+            const transition = /^CUT TO:[ \t]*$/.test(line);
+            const cue = /^([A-Z][A-Z0-9 .’'-]{0,59})(?:[ \t]+\((?:V\.O\.|O\.S\.)\))?:[ \t]*(\S.*)$/.exec(line);
+            const speaker = cue && !planningLabels.has(cue[1].trim());
+            const speech = speaker && /\b(?:I|me|my|mine|we|us|our|ours|you|your|yours)\b|[?!]$/i.test(cue[2]);
+            const dialogue = speaker && ((previousCue && (previousSpeech || speech)) || /^["“‘'].*["”’'][.!?]?$/.test(cue[2]));
+            check(!slugline && !transition && !dialogue,
+                'screenplay formatting is not allowed in Story planning content', code);
+            previousCue = Boolean(speaker);
+            previousSpeech = Boolean(speech);
+        }
+    }
+    else if (value && typeof value === 'object')
+        for (const child of Object.values(value)) assertPlanningStrings(child, code);
+}
 // Context is structurally typed while the service owns the port contract.
 // The caller validates the context and reference graph before this semantic gate.
 export function validateContent(v, context, artifacts, code = 'VALIDATION_ERROR') {
@@ -43,6 +75,7 @@ export function validateContent(v, context, artifacts, code = 'VALIDATION_ERROR'
     check(role && v.kind === roleKind(role), 'Story content type/kind mismatch', code);
     assertShape(role, v.content, code);
     const c = contentObject(v);
+    if (planningRoles.has(role)) assertPlanningStrings(c, code);
     if (role === 'master_outline' || role === 'episode_outline') {
         const seen = new Set();
         for (const beat of c.causal_beats) {

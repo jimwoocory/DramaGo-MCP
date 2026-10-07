@@ -4,8 +4,13 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import test from 'node:test'
 import ts from 'typescript'
+import { validateStoryMediaBoundary } from '../../scripts/story-dependency-boundaries.mjs'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
+
+test('Story runtime cannot depend on Media Core or Media Application', () => {
+  assert.deepEqual(validateStoryMediaBoundary(root), [])
+})
 function files(dir) {
   return readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
     if (['node_modules', '.git', 'dist', '.pnpm-store', '.corepack'].includes(entry.name)) return []

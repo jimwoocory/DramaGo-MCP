@@ -2,7 +2,7 @@ import { canonicalHash, equal, snapshot } from '@xiaoshuren/dramago-application/
 import type { ArtifactRef, ArtifactVersion, RunContext, ProjectFact, StoryRepository, StoryAuthorshipPort } from './ports.js'
 import { check, exact, freeze, ref } from './validation.js'
 import { artifactRole, contentObject, researchSnapshot } from './policy.js'
-import { contextOf, resolveIn, resolveDependencies, validateContext } from './dependencies.js'
+import { contextOf, executionId, resolveIn, resolveDependencies, validateContext } from './dependencies.js'
 import { trustedWriter } from './authorship.js'
 import { policy } from './contracts.js'
 
@@ -17,14 +17,28 @@ export function reviewScope(c: RunContext, artifacts: ArtifactVersion[]) {
   return { subjects, inspected, writers }
 }
 /** Validate every creative ancestor; labels never establish trusted authorship. */
-export async function independentReviewer(tx: StoryRepository, project: ProjectFact, identity: string, inputs: ArtifactVersion[], attestation?: StoryAuthorshipPort, allowSynthetic = false) {
-  const structural = new Set<string>()
+export async function independentReviewer(tx: StoryRepository, project: ProjectFact, identity: string, inputs: ArtifactVersion[], attestation?: StoryAuthorshipPort, allowSynthetic = false, trustedConfigurations: ArtifactRef[] = []) {
+  const structural = new Set(trustedConfigurations.map(canonicalHash))
   for (const v of inputs.filter(v => artifactRole(v) === 'run_context')) {
     validateContext(v, await resolveDependencies(tx, project, [ref(v)]))
     const c = contextOf(v)
     structural.add(canonicalHash(c.planning_scope.definition_ref))
-    structural.add(canonicalHash(c.executor.configuration_ref))
     structural.add(canonicalHash(ref(v)))
+    // A schema-valid context is not evidence that its configuration was trusted.
+    // Historical configs need an exact output with service-owned execution proof;
+    // current port configs are supplied explicitly by the service, not the caller.
+    const run = await tx.getRun(executionId(ref(v)))
+    if (run?.status === 'succeeded' && Array.isArray(run.steps)) {
+      const outputRef = run.steps.flatMap(step => Array.isArray(step.attempts) ? step.attempts : [])
+        .filter(attempt => attempt.status === 'succeeded' && Array.isArray(attempt.output_refs))
+        .flatMap(attempt => attempt.output_refs)[0]
+      if (outputRef) {
+        const output = await exact(tx, project, outputRef)
+        check(equal(contentObject(output).run_context_ref, ref(v)), 'configuration lacks bound execution provenance', 'ROLE_SEPARATION')
+        await trustedWriter(tx, project, output)
+        structural.add(canonicalHash(c.executor.configuration_ref))
+      }
+    }
   }
   for (const input of inputs) {
     const v = await exact(tx, project, ref(input)), body = contentObject(v)

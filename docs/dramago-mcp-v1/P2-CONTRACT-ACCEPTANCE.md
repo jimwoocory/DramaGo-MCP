@@ -82,9 +82,11 @@ new P2 definition library and policy. P0 schema/fixture semantics are not weaken
 The shared Node schema checker preflights the new library; P2 test cases select
 named definitions explicitly. Existing package exports already expose both assets.
 
-## Runtime handoff, not implemented here
+## Historical runtime handoff
 
-The application/persistence owner still must implement and test:
+The following was the contracts-only handoff checklist, not the current runtime status. The local [P2 Story runtime](../../packages/story-development/README.md) and [context-ref composition adapter](../../apps/dramago-mcp/README.md) now implement and test the offline planning path. Run `pnpm test:story-runtime` for the development, revision, content, conformance, research, authorship and actual-runtime composition suites. External providers, USVDS stage invocation, production recovery and real-database deployment verification remain separate gates; the historical counts above are not current runtime-suite totals.
+
+The contracts-only handoff required:
 
 - Authenticated admission and atomic concurrent CAS/idempotency, recovery and
   durable CreativeRun/output publication; immutable input snapshots across awaits.

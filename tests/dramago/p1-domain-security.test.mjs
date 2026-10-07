@@ -315,6 +315,41 @@ for (const operation of ['approve', 'revoke']) {
   }
 }
 
+for (const operation of ['planning', 'script', 'revoke']) {
+  for (const replay of [false, true]) {
+    for (const source of ['caller', 'default']) test(`${operation} authorizes the authoritative workspace before ${replay ? 'replay' : 'writing'}, not ${source}`, async () => {
+      const { store, app } = await setup()
+      if (operation !== 'planning') await app.approvePlanningBaseline(auth(), planningInput())
+      const input = operation === 'planning' ? planningInput() : operation === 'script' ? scriptInput() : {
+        project_id: 'project_example', expected_revision: 1, idempotency_key: 'workspace-revocation', approval: revocation(),
+      }
+      const invoke = operation === 'planning' ? app.approvePlanningBaseline : operation === 'script' ? app.approveScriptBaseline : app.revokeApproval
+      if (replay) await invoke(auth(), input)
+      const resources = []
+      store._authorize = (_auth, _action, resource) => {
+        resources.push(resource)
+        return resource.workspace_id === 'ws_attacker'
+      }
+      const attacker = { ...auth(), defaultWorkspaceId: source === 'default' ? 'ws_attacker' : 'ws_example' }
+      const request = { ...input, ...(source === 'caller' ? { workspace_id: 'ws_attacker' } : {}) }
+      const before = structuredClone(store._state)
+      await assert.rejects(invoke(attacker, request), { code: 'FORBIDDEN' })
+      assert.deepEqual(resources, [{ project_id: 'project_example', workspace_id: 'ws_example' }])
+      // Includes approval/baseline rows, revision, idempotency, audit and outbox.
+      assert.deepEqual(store._state, before)
+    })
+  }
+}
+
+test('approval reads authorize the authoritative workspace, not the caller workspace', async () => {
+  const { store, app } = await setup()
+  await app.approvePlanningBaseline(auth(), planningInput())
+  store._authorize = (_auth, _action, resource) => resource.workspace_id === 'ws_attacker'
+  const before = structuredClone(store._state)
+  await assert.rejects(app.getApproval(auth(), { project_id: 'project_example', workspace_id: 'ws_attacker', target_ref: ref(fixture('planning-baseline')) }), { code: 'FORBIDDEN' })
+  assert.deepEqual(store._state, before)
+})
+
 test('another authenticated subject cannot replay an approval attributed to the original actor', async () => {
   const { app } = await setup()
   await app.approvePlanningBaseline(auth(), planningInput())

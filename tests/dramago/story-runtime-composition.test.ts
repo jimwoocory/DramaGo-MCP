@@ -2,11 +2,11 @@ import { describe, it, expect, vi } from 'vitest'
 import { createDramaApplication } from '../../packages/dramago-application/index.js'
 import { createDramaGoMcp, loadCatalog } from '../../apps/dramago-mcp/index.js'
 import { createLocalStoryPorts } from '../../apps/dramago-mcp/story-ports.js'
-import { auth, ref, setup as runtimeSetup } from './helpers/story-runtime.js'
+import { auth, ref, seal, setup as runtimeSetup } from './helpers/story-runtime.js'
 import { policy } from './helpers/p2-story-conformance.mjs'
 
-async function setup() {
-  const s = await runtimeSetup()
+async function setup(options: any = {}) {
+  const s = await runtimeSetup(options)
   // Call-through spies observe the seam without replacing the real runtime.
   const runStep = vi.spyOn(s.service, 'runStep')
   const planningReview = vi.spyOn(s.service, 'planningReview')
@@ -43,6 +43,33 @@ async function reviewSetup() {
 }
 
 describe('public Story tool -> local adapter -> actual runtime -> InMemory repository', () => {
+  it('fails generated screenplay prose through the public composition without publishing it', async () => {
+    let generated: any
+    const s = await setup({ generate: async (request: any, generate: any) => {
+      const bundle = await generate(request)
+      bundle.proposals[0].content.logline = 'INT. ROOM - NIGHT\nMAYA: Leave now.\nCUT TO:'
+      generated = seal(bundle.proposals[0])
+      bundle.proposals[0] = generated
+      return bundle
+    } })
+    const before = structuredClone(s.store._state)
+    const response = await s.app.callTool('dramago_story_step_run', s.input, auth)
+    expect(response.isError).toBe(false)
+    expect(Object.keys(response.structuredContent)).toEqual(['creative_run_id'])
+    expect(s.runStep).toHaveBeenLastCalledWith(auth, s.input)
+    const run = await s.store.getRun(response.structuredContent.creative_run_id)
+    expect(run.status).toBe('failed')
+    expect(run.steps[0].attempts[0]).toMatchObject({ status: 'failed', output_refs: [] })
+    expect([...s.store._state.audit.values()].at(-1)).toMatchObject({ error_code: 'INVALID_GENERATION_OUTPUT' })
+    expect(await s.store.getArtifactVersion(generated.version_id)).toBeNull()
+    expect(s.store._state.versions).toEqual(before.versions)
+    expect(s.store._state.projects).toEqual(before.projects)
+    expect(s.store._state.baselines.size).toBe(0)
+    expect(s.store._state.approvals.size).toBe(0)
+    expect(await s.app.callTool('dramago_story_step_run', s.input, auth)).toEqual(response)
+    expect(s.calls).toHaveLength(1)
+  })
+
   it('passes only the published direction DTO and returns only the persisted run identity, including replay', async () => {
     const s = await setup()
     const { response, run, outputs } = await s.execute(s.input)
@@ -167,6 +194,54 @@ describe('public Story tool -> local adapter -> actual runtime -> InMemory repos
     const executions = [s.calls.length, s.reviewCalls.length, s.researchCalls.length]
     expect(await s.app.callTool(tool, input, auth)).toEqual(response)
     expect([s.calls.length, s.reviewCalls.length, s.researchCalls.length]).toEqual(executions)
+    expect(s.store._state).toEqual(before)
+  })
+
+  it.each([
+    ['direction', 'revision'], ['direction', 'context'], ['direction', 'step'],
+    ['planning_review', 'revision'], ['planning_review', 'context'],
+  ])('delegates reused %s key with changed %s to authoritative conflict handling', async (operation, change) => {
+    const s = operation === 'direction' ? await setup() : await reviewSetup()
+    const input = operation === 'direction' ? s.input : (s as Awaited<ReturnType<typeof reviewSetup>>).reviewInput
+    const tool = operation === 'direction' ? 'dramago_story_step_run' : 'dramago_planning_review'
+    await s.execute(input)
+    const context = await s.store.getArtifactVersion(input.context_ref.version_id)
+    const changedContext = await s.put({ ...context.content, project_revision: input.expected_revision + 1 })
+    const edits = change === 'revision' ? { expected_revision: input.expected_revision + 1 }
+      : change === 'context' ? { context_ref: ref(changedContext) } : { step: 'bible' }
+    const before = structuredClone(s.store._state)
+    const executions = [s.calls.length, s.reviewCalls.length, s.researchCalls.length]
+    const runtime = operation === 'direction' ? s.runStep : s.planningReview
+    runtime.mockClear()
+    const request = { ...input, ...edits }
+    const response = await s.app.callTool(tool, request, auth)
+    expect(response.structuredContent.error?.code).toBe('IDEMPOTENCY_CONFLICT')
+    expect(runtime).toHaveBeenCalledTimes(1)
+    expect(runtime).toHaveBeenLastCalledWith(auth, request)
+    await expect(runtime.mock.results[0].value).rejects.toMatchObject({ code: 'IDEMPOTENCY_CONFLICT' })
+    expect([s.calls.length, s.reviewCalls.length, s.researchCalls.length]).toEqual(executions)
+    expect(s.store._state).toEqual(before)
+  })
+
+  it.each(['foreign-context', 'foreign-binding', 'wrong-digest', 'missing-scope', 'denied-workspace'])('keeps replay preflight authorization and exact ownership checks: %s', async attack => {
+    const s = await setup()
+    await s.execute(s.input)
+    let request = { ...s.input, expected_revision: s.input.expected_revision + 1 }
+    if (attack === 'foreign-context' || attack === 'foreign-binding') {
+      const owner = { project_id: 'foreign', workspace_id: 'other_workspace' }
+      await s.store.createProject({ ...owner, revision: 0 })
+      const content = structuredClone(s.context.content)
+      if (attack === 'foreign-binding') content.bindings.idea = ref(await s.put(s.seed('idea').content, 'other_drama', owner))
+      request = { ...request, context_ref: ref(await s.put(content, 'other_drama', attack === 'foreign-context' ? owner : {})) }
+    }
+    if (attack === 'wrong-digest') request.context_ref = { ...request.context_ref, content_digest: `sha256:${'0'.repeat(64)}` }
+    if (attack === 'denied-workspace') s.store._authorize = () => false
+    const before = structuredClone(s.store._state)
+    s.runStep.mockClear()
+    const response = await s.app.callTool('dramago_story_step_run', request, attack === 'missing-scope' ? { ...auth, scopes: [] } : auth)
+    expect(response.structuredContent.error?.code).toBe(['missing-scope', 'denied-workspace'].includes(attack) ? 'FORBIDDEN' : 'VALIDATION_ERROR')
+    expect(s.runStep).not.toHaveBeenCalled()
+    expect(s.calls).toHaveLength(1)
     expect(s.store._state).toEqual(before)
   })
 
