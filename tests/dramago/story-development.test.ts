@@ -5,6 +5,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { canonicalHash, createDramaApplication } from '../../packages/dramago-application/index.js'
 import { StoryDevelopmentService } from '../../packages/story-development/src/index.js'
+import { resolveDependencies } from '../../packages/story-development/src/dependencies.js'
+import { independentReviewer } from '../../packages/story-development/src/review.js'
 import { auth, contextOf, ref, seal, setup } from './helpers/story-runtime.js'
 
 const steps = ['direction', 'adaptation', 'bible', 'master_outline', 'season_architecture', 'episode_outlines']
@@ -38,6 +40,41 @@ async function approvalInput(s: any, e: any) {
 }
 
 describe('P2 Story runtime with the published three-port contract', () => {
+  it('proves every generated author including episode sets with exact member dependencies', async () => {
+    const s = await fullStory()
+    const project = await s.store.getProject(s.project.project_id)
+    const inputs = await resolveDependencies(s.store, project, [s.byRole.episode_outline_set])
+    await expect(independentReviewer(s.store, project, 'reviewer_a', inputs, s.configuration.authorship, true)).resolves.toBeUndefined()
+    await expect(independentReviewer(s.store, project, 'reviewer_a', inputs, undefined, true)).rejects.toMatchObject({ code: 'ROLE_SEPARATION' })
+  })
+  it.each(['idea', 'source'])('rejects unknown transitive %s authorship before review or writes', async unknown => {
+    const s = await fullStory()
+    // Self-declared labels are not a trusted host attestation.
+    const source = await s.put({ note: 'Imported source', generated_by: 'not-the-reviewer' })
+    const parent = await s.put({ source_ref: ref(source) })
+    const service = new StoryDevelopmentService(s.store, { ...s.configuration,
+      authorship: unknown === 'idea' ? undefined : { attest: async (request: any, signal: AbortSignal) =>
+        canonicalHash(ref(request.artifact)) === canonicalHash(ref(parent))
+          ? { artifact_ref: ref(parent), author_identities: ['fixture-source-author'] }
+          : s.configuration.authorship.attest(request, signal) },
+    })
+    const command = await s.command('planning_review', { source_refs: unknown === 'source' ? [ref(parent)] : [] })
+    const before = structuredClone(s.store._state), count = s.calls.length
+    await expect(service.planningReview(auth, command)).rejects.toMatchObject({ code: 'ROLE_SEPARATION' })
+    expect(s.reviewCalls).toHaveLength(0); expect(s.calls).toHaveLength(count)
+    expect(s.store._state).toEqual(before)
+  })
+  it.each(['unnamed-source', 'copied-seed', 'changed-digest', 'changed-body', 'foreign-project', 'foreign-workspace', 'foreign-owner'])('fixture authorship does not trust %s', async attack => {
+    const s = await setup(), artifact = structuredClone(s.seed('idea')), project = structuredClone(s.project)
+    if (attack === 'unnamed-source') Object.assign(artifact, await s.put({ note: 'Unattested' }))
+    if (attack === 'copied-seed') { artifact.artifact_id = 'art_copy'; artifact.version_id = 'av_copy' }
+    if (attack === 'changed-digest') artifact.content_digest = `sha256:${'0'.repeat(64)}`
+    if (attack === 'changed-body') artifact.content.premise = 'Changed without resealing'
+    if (attack === 'foreign-project') artifact.project_id = 'foreign'
+    if (attack === 'foreign-workspace') artifact.workspace_id = 'foreign'
+    if (attack === 'foreign-owner') project.project_id = 'foreign'
+    expect(await s.configuration.authorship.attest({ artifact, project, reviewer_identity: 'reviewer_a' })).toBeNull()
+  })
   it.each(['generation', 'review', 'research', 'generation-config', 'review-config', 'old-resolve'])('constructor fails closed for missing %s', async attack => {
     const s = await setup(), config: any = { ...s.configuration }
     if (attack.endsWith('-config')) { const key = attack.split('-')[0]; config[key] = { ...config[key], configuration_ref: undefined } }
@@ -224,7 +261,18 @@ describe('P2 Story runtime with the published three-port contract', () => {
     it('freezes transitive bytes without flattening the direct manifest', async () => {
       const s = mode === 'review' ? await fullStory() : await setup(), step = mode === 'review' ? 'planning_review' : 'direction'
       const leaf = await s.put({ note: 'Imported source' }), parent = await s.put({ source_ref: ref(leaf) })
-      const e = await s.execute(step, await s.command(step, { source_refs: [ref(parent)] }))
+      // These two newly imported versions are trusted explicitly by this test,
+      // not by the shared fixture helper or a content-kind wildcard.
+      const service = new StoryDevelopmentService(s.store, { ...s.configuration, authorship: {
+        attest: async (request: any, signal: AbortSignal) => {
+          const selected = [leaf, parent].find(v => canonicalHash(ref(v)) === canonicalHash(ref(request.artifact)))
+          return selected ? { artifact_ref: ref(selected), author_identities: ['fixture-source-author'] }
+            : s.configuration.authorship.attest(request, signal)
+        },
+      } })
+      const command = await s.command(step, { source_refs: [ref(parent)] })
+      const result = await (mode === 'review' ? service.planningReview(auth, command) : service.runStep(auth, command))
+      const e = { run: await s.store.getRun(result.creative_run_id) }
       expect(e.run.status).toBe('succeeded')
       const request = (mode === 'review' ? s.reviewCalls : s.calls).at(-1)
       expect(request.artifacts.map(ref)).toContainEqual(ref(leaf))
@@ -232,6 +280,47 @@ describe('P2 Story runtime with the published three-port contract', () => {
       expect(e.run.input_manifest.input_refs).not.toContainEqual(ref(leaf))
       expect(e.run.input_manifest_digest).toBe(canonicalHash(e.run.input_manifest))
     })
+  })
+  describe.each(['generation', 'review'])('frozen planning range for %s', mode => {
+    it.each(['reordered', 'missing', 'extra', 'wrong-kind'])('rejects %s definition before ports or mutation', async attack => {
+      const s = mode === 'review' ? await fullStory() : await setup()
+      const range = structuredClone(s.seed('range')), ids = [...s.project.planning_range.ordered_episode_ids]
+      range.content.ordered_episode_ids = attack === 'reordered' ? ids.reverse() : attack === 'missing' ? ids.slice(0, -1) : attack === 'extra' ? [...ids, 'ep_extra'] : ids
+      const forged = await s.put(range.content, attack === 'wrong-kind' ? 'other_drama' : 'planning_range')
+      const project = await s.store.getProject(s.project.project_id)
+      await s.store.compareAndSetProject(project.project_id, project.revision, { planning_range: { ...project.planning_range, definition_ref: ref(forged) } })
+      const step = mode === 'review' ? 'planning_review' : 'direction', command = await s.command(step)
+      const before = structuredClone(s.store._state), count = s.calls.length, researchCount = s.researchCalls.length
+      await expect(mode === 'review' ? s.service.planningReview(auth, command) : s.service.runStep(auth, command)).rejects.toMatchObject({ code: 'VALIDATION_ERROR' })
+      expect(s.calls).toHaveLength(count); expect(s.reviewCalls).toHaveLength(0)
+      expect(s.researchCalls).toHaveLength(researchCount); expect(s.store._state).toEqual(before)
+    })
+  })
+  it('freezes exact episode set members through ordinary source traversal', async () => {
+    const s = await fullStory(), set = await s.store.getArtifactVersion(s.byRole.episode_outline_set.version_id)
+    const members = set.content.ordered_episodes.map((e: any) => e.outline_ref)
+    expect(set.content.dependency_refs).toEqual(expect.arrayContaining(members))
+    const e = await s.execute('direction', await s.command('direction', { source_refs: [ref(set)] }))
+    expect(e.run.status).toBe('succeeded')
+    expect(s.calls.at(-1).artifacts.map(ref)).toEqual(expect.arrayContaining(members))
+    expect(e.run.input_manifest.input_refs).toContainEqual(ref(set))
+    for (const member of members) expect(e.run.input_manifest.input_refs).not.toContainEqual(member)
+  })
+  it.each(['missing', 'corrupt', 'omitted-member-ref'])('rejects %s set member before model calls or mutation', async attack => {
+    const s = await fullStory()
+    let set = await s.store.getArtifactVersion(s.byRole.episode_outline_set.version_id)
+    const member = set.content.ordered_episodes[0].outline_ref
+    if (attack === 'missing') s.store._state.versions.delete(member.version_id)
+    if (attack === 'corrupt') s.store._state.versions.get(member.version_id).content = 'tampered member'
+    if (attack === 'omitted-member-ref') {
+      set.content.dependency_refs = set.content.dependency_refs.filter((r: any) => r.version_id !== member.version_id)
+      set = seal(set); s.store._state.versions.set(set.version_id, set)
+    }
+    const command = await s.command('direction', { source_refs: [ref(set)] })
+    const before = structuredClone(s.store._state), count = s.calls.length
+    await expect(s.service.runStep(auth, command)).rejects.toMatchObject({ code: 'VALIDATION_ERROR',
+      message: attack === 'missing' ? 'unresolved or foreign artifact reference' : attack === 'corrupt' ? 'stored content digest mismatch' : 'invalid exact output dependencies' })
+    expect(s.calls).toHaveLength(count); expect(s.reviewCalls).toHaveLength(0); expect(s.store._state).toEqual(before)
   })
   it.each(['adaptation', 'bible', 'master_outline'])('rejects missing %s bindings before model calls', async step => {
     const s = await setup(), command = await s.command(step, { bindings: { idea: s.byRole.idea } })

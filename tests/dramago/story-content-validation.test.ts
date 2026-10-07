@@ -68,6 +68,14 @@ it('identifies roles only through schema versions, and checks content shape and 
   }
 })
 
+it('shares the canonical research validator with fixture conformance', async () => {
+  const shared = await import('../../packages/dramago-contracts/story-validator.mjs')
+  expect(rules.researchSnapshot).toBe(shared.researchSnapshot)
+  const v = fixture().get('research')
+  v.content.sources[0].locator = 'model:invented'
+  expect(() => shared.researchSnapshot(v, true)).toThrowError(expect.objectContaining({ code: 'VALIDATION_ERROR' }))
+})
+
 it('accepts schema-bound research only with explicit synthetic opt-in', () => {
   const v = fixture().get('research')
   expect(() => rules.researchSnapshot(v, true)).not.toThrow()

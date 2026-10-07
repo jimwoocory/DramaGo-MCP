@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { canonicalHash, snapshot, equal, DomainError } from '@xiaoshuren/dramago-application/domain.js'
 import type { ArtifactVersion, AuthContext, Command, CreativeRun, GenerationRequest, JsonObject, PlanningReviewInput, ProjectFact, RunContext, RunResult, RunStepInput, StoryOptions, StoryRepository } from './ports.js'
 import { check, commandValid, exact, freeze, projectAt, ref, reference, text, uniqueRefs } from './validation.js'
-import { STORY_POLICY_VERSION, artifactRole, contentObject, researchSnapshot, validateContent } from './policy.js'
+import { STORY_POLICY_VERSION, artifactRole, contentObject, researchSnapshot, marketClaimsValid, validateContent } from './policy.js'
 import { assertShape, policy } from './contracts.js'
 import { independentReviewer, reviewValid } from './review.js'
 import { coherentBindings, contextOf, executionId, manifestRefs, resolveDependencies, resolveIn, validateContext, validateGraph, validateSet } from './dependencies.js'
@@ -19,12 +19,14 @@ export class StoryDevelopmentService {
     check(typeof options.generation.generate === 'function' && typeof options.review.review === 'function' && typeof options.research?.resolve_snapshot === 'function', 'all three injected ports are required')
     reference(options.generation.configuration_ref); reference(options.review.configuration_ref)
     check((options.generation as unknown) !== options.review && options.generation.identity !== options.review.identity && (options.generation.generate as unknown) !== options.review.review, 'writer and reviewer must be separate roles', 'ROLE_SEPARATION')
+    check(options.authorship === undefined || typeof options.authorship.attest === 'function', 'invalid trusted authorship port')
     // Capture trusted identities/configuration/callables before any async boundary.
     this.options = {
       generation: Object.freeze({ identity: options.generation.identity, configuration_ref: freeze(snapshot(options.generation.configuration_ref)), generate: options.generation.generate.bind(options.generation) }),
       review: Object.freeze({ identity: options.review.identity, configuration_ref: freeze(snapshot(options.review.configuration_ref)), review: options.review.review.bind(options.review) }),
       research: Object.freeze({ resolve_snapshot: options.research.resolve_snapshot.bind(options.research) }),
-      allowSyntheticResearch: options.allowSyntheticResearch === true,
+      allowSyntheticResearch: options.allowSyntheticResearch === true || options.allow_synthetic_research === true,
+      ...(options.authorship ? { authorship: Object.freeze({ attest: options.authorship.attest.bind(options.authorship) }) } : {}),
     }
     this.now = options.now ?? (() => new Date())
     this.id = options.id ?? randomUUID
@@ -78,7 +80,11 @@ export class StoryDevelopmentService {
       validateContext(context, artifacts)
       await validateGraph(tx, artifacts, this.options.allowSyntheticResearch === true)
       coherentBindings(c, artifacts)
-      if (isReview) independentReviewer(executor.identity, c, artifacts)
+      const researchArtifact = c.research.status === 'supplied' ? resolveIn(artifacts, c.research.snapshot_ref) : undefined
+      for (const input of artifacts) marketClaimsValid(input.content, researchArtifact)
+      if (isReview) await independentReviewer(tx, project, executor.identity, artifacts,
+        this.options.authorship ? { attest: request => this.bounded(signal => this.options.authorship!.attest(request, signal)) } : undefined,
+        this.options.allowSyntheticResearch === true)
       if (c.research.status === 'supplied') {
         const selected = resolveIn(artifacts, c.research.snapshot_ref)
         const request = { workspace_id: project.workspace_id, project_id: project.project_id, snapshot_ref: c.research.snapshot_ref }
@@ -116,6 +122,7 @@ export class StoryDevelopmentService {
       if (step === 'episode_outlines') check(equal(outputs.map(v => v.episode_id), project.planning_range.ordered_episode_ids), 'complete ordered episodes required', code)
       for (const output of outputs) {
         validateContent(output, c, request.artifacts, code)
+        marketClaimsValid(output.content, c.research.status === 'supplied' ? resolveIn(request.artifacts, c.research.snapshot_ref) : undefined, code)
         check(equal(contentObject(output).run_context_ref, command.context_ref) && equal(contentObject(output).dependency_refs, request.input_manifest.input_refs), 'proposal provenance mismatch', code)
       }
       if (isReview) reviewValid(outputs[0], c, request.artifacts)

@@ -1,7 +1,8 @@
 import type { StoryStep } from './ports.js'
 import { freeze } from './validation.js'
 import { policy } from './contracts.js'
-export { roleKind, contentObject, artifactRole, validateContent, researchSnapshot } from '../../dramago-contracts/story-validator.mjs'
+export { roleKind, contentObject, artifactRole, validateContent } from '../../dramago-contracts/story-validator.mjs'
+export { researchSnapshot, marketClaimsValid } from './research.js'
 
 interface StepPolicy { research: 'required' | 'optional'; requires: string[]; outputs: string[] }
 export const STORY_POLICY_VERSION = policy.policy_version

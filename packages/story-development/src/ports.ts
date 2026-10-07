@@ -79,7 +79,17 @@ export interface StoryRepository {
   putIdempotency(record: { scope: object; key: string; payloadHash: string; result: RunResult }): Promise<unknown>
   appendAudit(event: object): Promise<unknown>
 }
+/** Trusted host metadata lookup, never populated from command or artifact labels.
+ * Return all known authors of this exact immutable version, or null if unknown.
+ * The host must use authenticated import/creation provenance, not generated_by.
+ */
+export interface StoryAuthorshipPort {
+  attest(request: { artifact: ArtifactVersion; project: ProjectFact; reviewer_identity: string }, signal: AbortSignal): Promise<{ artifact_ref: ArtifactRef; author_identities: string[] } | null>
+}
 export interface StoryOptions {
+  /** Trusted host-only offline opt-in; never supplied by a command. */
+  allow_synthetic_research?: boolean
+  authorship?: StoryAuthorshipPort
   generation: StoryGenerationPort
   review: PlanningReviewPort
   research: ResearchContextPort

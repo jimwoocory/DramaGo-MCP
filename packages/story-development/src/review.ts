@@ -1,8 +1,9 @@
-import { canonicalHash, equal } from '@xiaoshuren/dramago-application/domain.js'
-import type { ArtifactRef, ArtifactVersion, RunContext } from './ports.js'
-import { check } from './validation.js'
-import { contentObject } from './policy.js'
-import { contextOf, resolveIn } from './dependencies.js'
+import { canonicalHash, equal, snapshot } from '@xiaoshuren/dramago-application/domain.js'
+import type { ArtifactRef, ArtifactVersion, RunContext, ProjectFact, StoryRepository, StoryAuthorshipPort } from './ports.js'
+import { check, exact, freeze, ref } from './validation.js'
+import { artifactRole, contentObject, researchSnapshot } from './policy.js'
+import { contextOf, resolveIn, resolveDependencies, validateContext } from './dependencies.js'
+import { trustedWriter } from './authorship.js'
 import { policy } from './contracts.js'
 
 export function reviewScope(c: RunContext, artifacts: ArtifactVersion[]) {
@@ -15,8 +16,30 @@ export function reviewScope(c: RunContext, artifacts: ArtifactVersion[]) {
     .filter(Boolean).map(r => contextOf(resolveIn(artifacts, r as unknown as ArtifactRef)).executor.executor_id))].sort()
   return { subjects, inspected, writers }
 }
-export function independentReviewer(identity: string, c: RunContext, artifacts: ArtifactVersion[]) {
-  check(!reviewScope(c, artifacts).writers.includes(identity), 'reviewer authored a subject', 'ROLE_SEPARATION')
+/** Validate every creative ancestor; labels never establish trusted authorship. */
+export async function independentReviewer(tx: StoryRepository, project: ProjectFact, identity: string, inputs: ArtifactVersion[], attestation?: StoryAuthorshipPort, allowSynthetic = false) {
+  const structural = new Set<string>()
+  for (const v of inputs.filter(v => artifactRole(v) === 'run_context')) {
+    validateContext(v, await resolveDependencies(tx, project, [ref(v)]))
+    const c = contextOf(v)
+    structural.add(canonicalHash(c.planning_scope.definition_ref))
+    structural.add(canonicalHash(c.executor.configuration_ref))
+    structural.add(canonicalHash(ref(v)))
+  }
+  for (const input of inputs) {
+    const v = await exact(tx, project, ref(input)), body = contentObject(v)
+    check(body.generated_by !== identity, 'reviewer authored a subject', 'ROLE_SEPARATION')
+    const role = artifactRole(v)
+    if (role === 'research_snapshot') { researchSnapshot(v, allowSynthetic); continue }
+    // A creative artifact cannot acquire an exemption just by being referenced as config.
+    if ((!role || role === 'run_context') && structural.has(canonicalHash(ref(v)))) continue
+    if (body.run_context_ref) {
+      check(await trustedWriter(tx, project, v) !== identity, 'reviewer authored a subject', 'ROLE_SEPARATION')
+      continue
+    }
+    const result = attestation ? snapshot(await attestation.attest(freeze(snapshot({ artifact: v, project, reviewer_identity: identity })), new AbortController().signal)) : null
+    check(result && equal(result.artifact_ref, ref(v)) && Array.isArray(result.author_identities) && result.author_identities.length > 0 && result.author_identities.every(author => typeof author === 'string' && author.trim().length > 0 && author !== identity), 'creative authorship is not trusted or independent', 'ROLE_SEPARATION')
+  }
 }
 export function reviewValid(v: ArtifactVersion, c: RunContext, artifacts: ArtifactVersion[]) {
   const code = 'INVALID_REVIEW_OUTPUT', result = contentObject(v) as any

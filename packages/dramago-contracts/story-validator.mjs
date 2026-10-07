@@ -93,18 +93,31 @@ export function validateContent(v, context, artifacts, code = 'VALIDATION_ERROR'
     else
         check(!Object.hasOwn(v, 'episode_id'), 'non-episode Story content cannot have episode envelope', code);
 }
+function researchTimestamp(value) {
+    const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|[+-](\d{2}):(\d{2}))$/i.exec(value);
+    check(match, 'invalid research timestamp');
+    const [, y, m, d, h, min, sec, oh = '0', om = '0'] = match;
+    const days = new Date(Date.UTC(Number(y), Number(m), 0)).getUTCDate();
+    check(Number(m) >= 1 && Number(m) <= 12 && Number(d) >= 1 && Number(d) <= days
+        && Number(h) <= 23 && Number(min) <= 59 && Number(sec) <= 59 && Number(oh) <= 23
+        && Number(om) <= 59 && Number.isFinite(Date.parse(value)), 'invalid research timestamp');
+    return Date.parse(value);
+}
 export function researchSnapshot(v, allowSynthetic = false) {
     check(artifactRole(v) === 'research_snapshot' && v.kind === roleKind('research_snapshot'), 'research snapshot required');
     assertShape('research_snapshot', v.content);
     const c = contentObject(v);
-    check(allowSynthetic || c.data_class !== 'synthetic', 'synthetic research requires explicit test opt-in');
+    check(c.data_class === 'observed' || (allowSynthetic === true && c.data_class === 'synthetic'), 'synthetic research requires explicit test opt-in');
     uniqueIds(c.sources, 'source_id');
     uniqueIds(c.claims, 'claim_id');
     const sources = new Set(c.sources.map((source) => source.source_id));
     for (const claim of c.claims)
         check(claim.source_ids.every((id) => sources.has(id)), 'research claim references missing source');
-    for (const source of c.sources)
-        check(Date.parse(source.captured_at) <= Date.parse(c.as_of), 'research capture after snapshot');
+    const asOf = researchTimestamp(c.as_of);
+    for (const source of c.sources) {
+        check(!/^\s*model\s*:/i.test(source.locator), 'model memory is not research evidence');
+        check(researchTimestamp(source.captured_at) <= asOf, 'research capture after snapshot');
+    }
 }
 // Select only the explicitly frozen record. Ownership, digests and provenance are
 // independently verified by the parent service; never pick a role-based fallback.

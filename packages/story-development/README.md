@@ -1,180 +1,140 @@
 # P2 Story Development runtime
 
 DramaGo-MCP owns this package. US-Vertical-Drama-Studio is external/read-only;
-there are no USVDS runtime imports. This package stops at Story proposals and
-planning review evidence. It does not implement screenplay, Stage 03/04,
-Production 05–09, Media semantics, tools/catalog, UI, remote MCP or a queue.
-`dramago_planning_baseline_approve` / the existing P1 ApprovalService remains
-the only formal planning approval path. Model PASS is not approval.
+there are no Media or USVDS runtime imports. The package stops at Story proposals
+and planning-review evidence. Screenplay, production, external stage execution,
+UI and crash-resumable scheduling are outside its scope. Model PASS is not
+approval: the existing P1 ApprovalService is the sole formal approval path.
 
-## Composition
+## Published contracts and composition
 
-Build with `pnpm build`, then import `StoryDevelopmentService` and its port
-interfaces from `@xiaoshuren/story-development`. Inject the existing tenant-bound
-Drama repository (Memory, Journal or PostgreSQL); no new store or migration is
-introduced. Inject all three ports:
+Import `StoryDevelopmentService` and its interfaces from
+`@xiaoshuren/story-development`, injecting the existing tenant-bound Drama
+repository (Memory, Journal or PostgreSQL). No new store or migration is needed.
+All three ports are required; missing callables, identities or configuration
+refs fail closed in the constructor:
 
-- `StoryGenerationPort`: a named writer; `generate(request, signal)` returns
-  only `{ proposals: [{ role, data, episode_id? }] }`.
-- `PlanningReviewPort`: a different named reviewer; `review(request, signal)`
-  returns only `{ outcome, subject_refs, context_refs, findings, blockers }`.
-- `ResearchContextPort`: `resolve(request, signal)` returns an exact existing
-  research ArtifactVersion ref or `null`. The host must import research using
-  the existing fact-layer artifact API before calling this service. This port
-  is an offline context resolver, not a network client.
+- `StoryGenerationPort`: writer identity, exact `configuration_ref`, and
+  `generate(frozen_input, signal)` returning `{ proposals: ArtifactVersion[] }`.
+- `PlanningReviewPort`: distinct reviewer identity, exact `configuration_ref`,
+  and `review(frozen_input, signal)` returning the same proposal-bundle shape.
+- `ResearchContextPort`: `resolve_snapshot({ workspace_id, project_id,
+  snapshot_ref }, signal)` returning the exact persisted research ArtifactVersion.
+  It is an offline resolver, not a network client. Omitted research does not call it.
 
-The runtime imports only Node crypto and the local Drama application canonical
-hash/error helpers. Ports receive frozen detached inputs, never repository or
-approval capabilities. The host owns authentic identities and implementations;
-separate objects, callables and identities prevent accidental role reuse, not
-malicious adapters lying about their identity. A reviewer cannot review any
-resolved input bearing its writer identity, including historical dependencies.
+Ports receive detached, deeply frozen inputs, never repository or approval
+capabilities. Identities, configuration refs and callables are captured at
+construction; later host mutation cannot switch roles. The host must provide
+authentic identities and trustworthy implementations.
 
-## Commands and policies
+Both commands require `project_id`, `expected_revision`, `idempotency_key` and
+an exact `context_ref`; `runStep` also requires `step`. Workspace ownership comes
+from the tenant-bound project, not a caller label. The immutable run context
+binds operation, project revision, declared planning scope, executor identity
+and configuration, typed bindings, source refs and explicit research selection.
+The command response is only `{ creative_run_id }`; status lives in the durable run.
 
-Both methods require `project_id`, `workspace_id`, `expected_revision` and
-`idempotency_key`. `runStep` additionally takes `step`, nonempty unique
-`input_refs`, and optional `research_ref`. An idea is an existing `other_drama`
-artifact containing fuzzy text; project/range declaration uses the existing P1
-fact services. Explicit artifact refs are used throughout; there is no latest
-version lookup.
+The checked-in `story-development-policy.v1.json` is authoritative. Runtime and
+fixture conformance use the same published Story schemas and semantic validator.
+`STEP_POLICIES` is derived from that policy, not maintained separately:
 
-| Step | Mandatory input roles | Output roles | Research |
+| Step | Required bindings | Outputs | Research |
 |---|---|---|---|
-| direction | at least one idea/context ref | direction | optional |
-| adaptation | direction | adaptation | required |
-| bible | direction | story_foundation, story_bible | required |
+| direction | idea | direction | optional |
+| adaptation | idea, direction | story_foundation | required |
+| bible | story_foundation | story_bible | required |
 | master_outline | story_foundation, story_bible | master_outline | required |
-| season_architecture | master_outline | season_architecture | required |
-| episode_outlines | story_bible, master_outline, season_architecture | every episode_outline, then episode_outline_set | required |
+| season_architecture | story_foundation, story_bible, master_outline | season_architecture | required |
+| episode_outlines | story_foundation, story_bible, master_outline, season_architecture | ordered episode_outline records, application-assembled episode_outline_set | required |
+| planning_review | direction, story_foundation, story_bible, master_outline, season_architecture, episode_outline_set | planning_review_evidence | required |
 
-`STEP_POLICIES` is frozen and versioned by `STORY_POLICY_VERSION`. Missing
-research is allowed only for exploratory direction; that absence and policy are
-recorded explicitly. Research artifacts use the existing `other_drama` kind:
+Validation includes role-specific content, causal predecessor order, season
+movement membership and coverage, selected-Bible promise references, exact
+adaptation source equality, and ordered episode coverage. Actual port outputs
+and persisted facts pass through the same schema/semantic path as fixtures.
 
-    content.schema_version = "dramago.research-snapshot/v1"
-    content.snapshot_version = an immutable source snapshot/version label
-    content.captured_at = timestamp
-    content.sources = [{ uri, retrieved_at }, ...]
-    content.evidence = JSON evidence
+## Research provenance
 
-The resolver returns only an exact ref or `null`; false/empty values are invalid.
-If `research_ref` is present it must be an exact ref, not `null` or a selector.
-The resolver's ref must match `research_ref` when one was requested. Ownership,
-exact ref, body digest, version label, source records and timestamps are checked.
-No data is invented and the runtime does not certify source truth or freshness.
-Tests use labelled synthetic evidence, not claims about current markets.
+Canonical `dramago.research-snapshot/v1` content contains `data_class`, `as_of`,
+`territories`, `question`, `sources`, `claims` and `limitations`. Each source
+retains a stable `source_id`, locator, title, capture timestamp, content digest
+and nonblank excerpt. Each claim has a unique ID, statement and nonempty source
+IDs that resolve within that snapshot. Invalid dates, capture after `as_of`,
+model-memory locators, unsupported claims and legacy `evidence: null` fail closed.
 
-`planningReview` takes `planning_scope` with direction, foundation, Bible,
-master outline, season architecture, episode-outline-set and ordered individual
-outline refs (see `PlanningScope`), plus optional `research_ref`. It requires
-research, resolves the entire declared scope and verifies episode IDs, order,
-set membership, kinds, digests and coherent dependencies. Missing, duplicate,
-reordered or foreign episode refs fail before reviewer invocation. Project scope
-must be revised through the fact layer first; a writer cannot revise it.
+Observed evidence is required by default. Synthetic fixtures require the trusted
+host-only `allowSyntheticResearch: true` option (`allow_synthetic_research` is
+also accepted); commands cannot opt in. This is structural provenance validation,
+not certification of source truth or freshness. No market data is invented.
 
-Dependencies are recursively resolved with an iterative 4096-artifact bound;
-all resolved artifacts and the fixed project/context snapshot enter the manifest.
-Outputs retain this full provenance in `dependency_refs`, while
-`direct_dependency_refs` identifies selected inputs before ancestor expansion.
-Coherence checks use those selected refs so a revised direction may retain its
-historical predecessor without making regenerated downstream work unreviewable.
-Direct refs must be unique exact members of full provenance and their ancestor
-closure must cover it; all historical bodies still undergo ownership/digest checks.
-Legacy artifacts without direct refs retain conservative coherence validation.
-Foundation/Bible outputs revised together may retain historical sibling inputs
-only when the selected pair shares the same frozen input-manifest digest and
-proposal envelope; mixing generation cohorts or stale downstream versions fails.
-The runtime validates structural completeness and exact causal dependencies,
-not literary merit. Narrative/causal quality remains the writer/reviewer ports'
-responsibility, evidenced by structured findings.
+Structured `market_claim_ids` throughout inputs and outputs must be unique and
+supported by the selected exact research snapshot. Without research, claim lists
+must be empty. Research-port responses cannot substitute different bytes or refs.
 
-## Facts, replay, failure and approval
+## Dependencies and authorship
 
-Each command authorizes with `story.execute` or `story.review`, including replay.
-Inside one existing repository transaction it takes the repository's idempotency
-reservation, checks the payload hash, validates the expected project revision,
-resolves inputs, invokes exactly one writer OR reviewer, and saves:
+The service resolves exact transitive refs, including parents and configuration
+records, with cycle rejection and a 4096-artifact bound. Ownership and body
+digests are checked for every record, including historical revisions. The
+manifest retains deterministic direct inputs; transitive bytes remain in the
+frozen artifact graph. Outputs bind `run_context_ref` and exact `dependency_refs`.
+Episode sets additionally bind every member outline.
 
-1. An immutable `other_drama` run-context ArtifactVersion, freezing the full
-   project snapshot, command, role identities and research selection/policy.
-2. A CreativeRun with fixed manifest refs/digest and one terminal attempt.
-3. Immutable output ArtifactVersions with exact dependency refs and manifest
-   digest inside their content-hashed proposal envelope.
-4. The original result in existing idempotency facts and a run audit event.
-5. One project CAS revision increment (empty patch; no approval/head selection).
+Current selections come from semantic context bindings. Historical source and
+parent refs do not replace current selections. Conflicting selected dependencies
+fail regardless of traversal order. Revision parents retain artifact identity
+and cannot substitute content or episode identity.
 
-All commits are atomic. CAS/storage failure rolls back the complete command.
-A stale revision is rejected before ports run. Identical committed replay returns
-the same run/result before resolving research or calling a model, even after
-service/repository restart. Changed payload conflicts. Different-key PostgreSQL
-contenders may both compute, but the final CAS permits only one committed result.
+`authorship.ts` establishes service-generated authorship only through an actual
+successful durable Story run keyed by the exact context, matching project and
+workspace, recomputed manifest and full ordered refs, generating stage, successful
+attempt and exact persisted output membership. Episode-set members must belong
+to that same successful attempt. A copied output, caller label or matching digest
+alone is not an authorship proof.
 
-The synchronous offline port calls have a 30-second default timeout each,
-configurable within 1–60000ms, with AbortSignal and late-result discard. There is
-no background retry. Writer/reviewer throws, timeout or malformed output commit
-a failed CreativeRun, no output proposals, a sanitized error code and replay;
-a new attempt needs a new command/key/revision. Invalid inputs or missing research
-fail before a run is accepted and write nothing. Research resolution errors also
-write nothing. A process crash before transaction commit leaves no accepted run;
-there is no crash-resumable queue or precommitted in-flight run in P2. Injected
-ports must be cooperative, offline and side-effect-free; JS timers cannot preempt
-blocking synchronous code. Do not wrap service calls in another transaction.
+Reviewer independence covers every transitive creative ancestor, not just the
+immediate subjects. Imported ideas and sources with unknown authorship fail
+closed unless the optional trusted host `StoryAuthorshipPort.attest` returns
+that exact `artifact_ref` and a nonempty list of independent `author_identities`.
+The host must obtain these identities from authenticated import/creation metadata,
+never from caller-supplied `generated_by` labels. Any reviewer coauthorship is
+rejected. Structural metadata and canonical evidence do not establish creative
+authorship; their creative dependencies still require verification.
 
-Existing P0 ArtifactVersion kinds remain unchanged: direction, adaptation,
-episode-outline-set, research and run context are versioned `other_drama` content
-schemas/roles; foundation/Bible/master/season/individual outlines retain their
-existing kinds. All model outputs have `content.status = "proposal"`. The
-repository's existing CreativeRun revision field is retained.
+## Admission, replay, publication and approval
 
-Review evidence is an immutable `review_report` with `review_kind = "planning"`.
-Core `subject_refs` match P1's exact baseline subjects (range, foundation, Bible,
-master, season, every ordered outline). `context_refs` additionally bind direction,
-episode set and research. Both lists must be acknowledged by the reviewer. Every
-finding binds reviewed refs; blockers exactly list blocker finding codes. PASS
-requires no blockers; FAIL and BLOCKED require at least one. A valid FAIL or
-BLOCKED review is a successful evidence-producing run, not approval readiness.
+Every call, including replay, is authorized. Admission uses the repository's
+transactional idempotency lookup before mutable CAS prerequisites. An identical
+payload replays the same run ID without calling ports; changed payloads conflict.
+New admissions validate exact inputs, scope and provenance, then durably reserve
+a running CreativeRun and the idempotent response before generation/review.
 
-No candidate builder is needed: a caller assembles the existing P1 planning
-manifest from these exact refs and evidence. The integration test passes that
-manifest and a separately authorized human decision to the unchanged P1 approval
-service. Review never creates a baseline or approval fact, and P1 rejects FAIL
-and BLOCKED reports. Direction/research/set context stays transitively bound through the
-review artifact digest without changing the frozen P1 manifest shape.
+Output publication atomically checks fresh versions and project CAS, persists
+outputs, finishes the run by run CAS and appends an audit event. Competing contexts
+may compute, but only one project revision wins. Failure publishes no proposals
+and records a sanitized error. A process crash can leave a durable running run;
+there is no automatic resume queue. Do not wrap service calls in another transaction.
+
+Port calls have a 30-second default timeout, configurable from 1 to 60000ms,
+with AbortSignal and late-result discard. Ports must be cooperative, offline and
+side-effect-free; JavaScript timers cannot preempt blocking synchronous code.
+Invalid admission inputs and research resolution errors write nothing.
+
+Planning-review evidence has exact `subject_refs` and `inspected_refs`, reviewer
+and writer identities, structured findings and blocker finding IDs in order.
+PASS requires no blockers; FAIL/BLOCKED require blockers and remain evidence,
+not approval. Only separately authorized P1 human approval can create a formal
+PlanningBaseline. Review itself creates neither approval nor baseline facts.
 
 ## Verification
 
-    pnpm test:story-runtime
-    pnpm typecheck
-    pnpm build
-    pnpm test:media
-    pnpm test:dramago
+    corepack pnpm run test:story-runtime
+    corepack pnpm vitest run tests/dramago/story-research.test.ts tests/dramago/story-authorship.test.ts tests/dramago/story-content-validation.test.ts tests/dramago/story-runtime-conformance.test.ts
+    corepack pnpm run test:dramago-story-contracts
+    corepack pnpm typecheck
+    git diff --check
 
-The focused suite covers six-step execution, journal reopen durability, P1
-approval interoperability, stale/concurrent CAS, replay/conflict, rollback,
-foreign refs, digest tampering including transitive bodies, caller mutation,
-research policy, role separation, exact scope, blockers and no self-approval.
-Journal is a local development/reference backend; real PostgreSQL deployment
-integration remains the existing separate environment-dependent gate.
-
-### Closeout verification
-
-Verified on the P2 runtime worktree based on `main@95a7157`:
-
-- `pnpm test:story-runtime`: 89 passed (including direction and paired Bible revisions).
-- `pnpm test:dramago`: 94 Vitest tests and 346 Node tests passed; the 94 include Story.
-- `pnpm check:dramago-contracts`: static P0 and Python contract validation passed.
-- `pnpm test:media`: 132 passed; 3 real PostgreSQL tests skipped because
-  `POSTGRES_URL` is not configured. No local PostgreSQL/Docker executable was available.
-- `pnpm typecheck --force`, `pnpm build --force`: passed.
-- Frozen offline lockfile installation, built ESM workspace import, static
-  security scan, independent code review and diff whitespace checks: passed.
-
-The environment's pnpm shell shim was unavailable; commands used the installed
-Corepack entry with Node and pnpm 9.15.4. Workspace package globs already include
-Story; its TypeScript project reference and lockfile importer are explicit.
-
-Deferred: real PostgreSQL deployment integration, host/MCP handler wiring,
-production writer/reviewer/research adapters, and crash-resumable scheduling.
-Screenplay and external stage execution remain outside P2. Formal PlanningBaseline
-approval remains exclusively in the existing P1 service.
+The suites cover actual persisted runtime conformance, research and authorship
+negatives, exact revisions and episode sets, journal reopen, CAS/idempotency,
+independent review and the unchanged P1 approval boundary. Real PostgreSQL
+integration remains a separate environment-dependent deployment gate.

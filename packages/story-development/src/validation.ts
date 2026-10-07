@@ -29,6 +29,11 @@ export async function projectAt(tx: StoryRepository, command: Command): Promise<
   check(project.project_id === command.project_id, 'project identity mismatch')
   assertShape('drama-project.schema.json', project)
   check(project.revision === command.expected_revision, 'stale project revision', 'REVISION_CONFLICT')
+  const range = await exact(tx, project, project.planning_range.definition_ref)
+  check(range.kind === 'planning_range' && equal(range.content, {
+    workspace_id: project.workspace_id, project_id: project.project_id, range_id: project.planning_range.range_id,
+    ordered_episode_ids: project.planning_range.ordered_episode_ids,
+  }), 'range definition conflicts with declared episode scope')
   return snapshot(project)
 }
 export async function exact(tx: StoryRepository, project: ProjectFact, requested: ArtifactRef): Promise<ArtifactVersion> {

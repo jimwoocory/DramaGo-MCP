@@ -46,7 +46,20 @@ export async function setup(options: any = {}) {
     report.content.reviewed_writer_ids = ['writer_a']
     return { proposals: [seal(report)] }
   }
+  // Host trust is deliberately limited to this named, exact imported seed.
+  // put() never attests new source fixtures; their tests must opt in explicitly.
+  const importedSeeds = seeds.filter((a: any) => ['av_idea'].includes(a.version_id))
+  const authorship = 'authorship' in options ? options.authorship : {
+    attest: async ({ artifact, project: owner }: any) => {
+      const imported = importedSeeds.find((a: any) => canonicalHash(ref(a)) === canonicalHash(ref(artifact)))
+      if (!imported || owner.project_id !== project.project_id || owner.workspace_id !== project.workspace_id
+        || artifact.project_id !== project.project_id || artifact.workspace_id !== project.workspace_id
+        || canonicalHash(artifact.content) !== imported.content_digest) return null
+      return { artifact_ref: ref(imported), author_identities: ['fixture-import-author'] }
+    },
+  }
   const configuration = {
+    authorship,
     generation: { identity: 'writer_a', configuration_ref: ref(seed('writer_config')), generate: async (r: any, signal: AbortSignal) => { calls.push(r); return options.generate ? options.generate(r, generate, signal) : generate(r) } },
     review: { identity: 'reviewer_a', configuration_ref: ref(seed('reviewer_config')), review: async (r: any, signal: AbortSignal) => { reviewCalls.push(r); return options.review ? options.review(r, review, signal) : review(r) } },
     research: { resolve_snapshot: async (r: any) => { researchCalls.push(r); return options.research ? options.research(r) : store.getArtifactVersion(r.snapshot_ref.version_id) } },

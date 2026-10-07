@@ -1,6 +1,7 @@
 import { canonicalHash, equal } from '@xiaoshuren/dramago-application/domain.js'
 import type { ArtifactRef, ArtifactVersion, ProjectFact, RunContext, StoryRepository } from './ports.js'
 import { check, exact, ref, uniqueRefs } from './validation.js'
+import { trustedWriter } from './authorship.js'
 import { assertShape, policy } from './contracts.js'
 import { artifactRole, contentObject, researchSnapshot, roleKind, validateContent } from './policy.js'
 
@@ -75,14 +76,7 @@ export async function validateGraph(tx: StoryRepository, artifacts: ArtifactVers
       const siblings = role === 'episode_outline_set' ? (content.ordered_episodes as unknown as { outline_ref: ArtifactRef }[]).map(e => e.outline_ref) : []
       check(equal(content.dependency_refs, uniqueRefs([...refs, ...siblings])), 'invalid exact output dependencies')
       if (role === 'episode_outline_set') validateSet(v, c, artifacts)
-      // Identity is trusted only when an actual durable execution bound this
-      // exact context, manifest and output. Caller-provided author labels do not count.
-      const run = await tx.getRun(executionId(ref(context)))
-      check(run && run.status === 'succeeded' && run.project_id === v.project_id && run.workspace_id === v.workspace_id
-        && run.input_manifest_digest === canonicalHash(run.input_manifest)
-        && equal(run.input_manifest.input_refs, refs)
-        && run.steps.length === 1 && run.steps[0].stage === `story.${c.operation}`
-        && run.steps[0].attempts.some(a => a.status === 'succeeded' && a.input_manifest_digest === run.input_manifest_digest && a.output_refs.some(r => equal(r, ref(v)))), 'Story output lacks trusted execution provenance')
+      await trustedWriter(tx, { project_id: v.project_id, workspace_id: v.workspace_id, revision: c.project_revision, planning_range: c.planning_scope }, v, artifacts, 'VALIDATION_ERROR')
     } else check(!content.run_context_ref && !content.schema_version?.toString().startsWith('dramago.story-'), 'unknown Story content')
   }
 }
