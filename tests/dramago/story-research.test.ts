@@ -92,8 +92,96 @@ describe('Story research provenance', () => {
     expect(adaptation.outputs[0].content.dependency_refs).toContainEqual(ref(b))
     expect(s.researchCalls.map((r: any) => r.snapshot_ref)).toEqual([ref(a), ref(b)])
   })
+  it.each(['direct', 'nested reference', 'parent'])('retains imported %s source provenance across observed research A to B', async edge => {
+    const s = await runtimeSetup({
+      config: { allowSyntheticResearch: undefined },
+      generate: async (request: any, generate: any) => {
+        const bundle = await generate(request)
+        bundle.proposals = bundle.proposals.map((v: any) => v.content.schema_version === 'dramago.direction/v1'
+          ? seal({ ...v, content: { ...v.content, market_claim_ids: ['claim_1'] } }) : v)
+        return bundle
+      },
+    })
+    const a = await s.put(snapshot())
+    const bContent = snapshot(); bContent.claims[0].claim_id = 'claim_2'
+    const b = await s.put(bContent)
+    const source = await s.put({ data: [{ nested: { market_claim_ids: ['claim_1'] } }] })
+    const selected = edge === 'direct' ? source : edge === 'nested reference'
+      ? await s.put({ retained_source: ref(source) })
+      : await s.put({ revision: 'Imported revision' }, source.kind, { artifact_id: source.artifact_id, parent_ref: ref(source) })
+    const direction = await s.execute('direction', await s.command('direction', {
+      research: { status: 'supplied', snapshot_ref: ref(a) }, source_refs: [ref(selected)],
+    }))
+    expect(direction.run.status).toBe('succeeded')
+    const retained = structuredClone([source, selected, direction.outputs[0]])
+    const command = await s.command('adaptation', {
+      research: { status: 'supplied', snapshot_ref: ref(b) }, source_refs: [],
+    })
+    const adaptation = await s.execute('adaptation', command)
+    expect(adaptation.run.status).toBe('succeeded')
+    expect(s.calls[1].artifacts).toEqual(expect.arrayContaining([a, b, source, selected, direction.outputs[0]]))
+    expect(adaptation.outputs[0].content.dependency_refs).toContainEqual(ref(b))
+    expect(adaptation.outputs[0].content.dependency_refs).not.toContainEqual(ref(a))
+    for (const record of retained) expect(await s.store.getArtifactVersion(record.version_id)).toEqual(record)
+    expect(s.researchCalls.map((r: any) => r.snapshot_ref)).toEqual([ref(a), ref(b)])
+    expect((await s.execute('adaptation', command)).result).toEqual(adaptation.result)
+    expect(s.calls).toHaveLength(2)
+  })
+  it.each(['historical-first', 'current-first', 'nested-current', 'parent-current', 'omitted-current'])('does not lend historical import support to current sources: %s', async path => {
+    const s = await setup(snapshot(), {}, { market_claim_ids: ['claim_1'] }, { data: [{ market_claim_ids: ['claim_1'] }] })
+    const direction = await s.run()
+    expect(direction.run.status).toBe('succeeded')
+    const oldContext = await s.store.getArtifactVersion(direction.request.context_ref.version_id)
+    const sourceRef = oldContext.content.source_refs[0]
+    const source = await s.store.getArtifactVersion(sourceRef.version_id)
+    const bContent = snapshot(); bContent.claims[0].claim_id = 'claim_2'
+    const b = await s.put(bContent)
+    const currentRef = path === 'nested-current' ? ref(await s.put({ nested: [sourceRef] }))
+      : path === 'parent-current' ? ref(await s.put({ note: 'current revision' }, source.kind, { artifact_id: source.artifact_id, parent_ref: sourceRef })) : sourceRef
+    const sources = [ref(direction.outputs[0]), currentRef]
+    if (path === 'current-first') sources.reverse()
+    const command = await s.command('direction', {
+      research: path === 'omitted-current' ? { status: 'omitted', reason: 'No current research' } : { status: 'supplied', snapshot_ref: ref(b) },
+      source_refs: sources,
+    })
+    const before = structuredClone(s.store._state)
+    await expect(s.execute('direction', command)).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR', message: 'market claim lacks selected research support',
+    })
+    expect(s.calls).toHaveLength(1)
+    expect(s.researchCalls).toHaveLength(1)
+    expect(s.store._state).toEqual(before)
+  })
+  it('accepts current claims supported only by B while retaining imported historical claims from A', async () => {
+    const s = await runtimeSetup({
+      config: { allowSyntheticResearch: undefined },
+      generate: async (request: any, generate: any) => {
+        const bundle = await generate(request)
+        const c = request.artifacts.find((v: any) => v.version_id === request.context_ref.version_id).content
+        const research = request.artifacts.find((v: any) => v.version_id === c.research.snapshot_ref.version_id)
+        bundle.proposals[0].content.market_claim_ids = [research.content.claims[0].claim_id]
+        bundle.proposals[0] = seal(bundle.proposals[0])
+        return bundle
+      },
+    })
+    const a = await s.put(snapshot())
+    const bContent = snapshot(); bContent.claims[0].claim_id = 'claim_2'
+    const b = await s.put(bContent)
+    const sourceA = await s.put({ nested: { market_claim_ids: ['claim_1'] } })
+    const sourceB = await s.put({ nested: { market_claim_ids: ['claim_2'] } })
+    const prior = await s.execute('direction', await s.command('direction', {
+      research: { status: 'supplied', snapshot_ref: ref(a) }, source_refs: [ref(sourceA)],
+    }))
+    expect(prior.run.status).toBe('succeeded')
+    const current = await s.execute('direction', await s.command('direction', {
+      research: { status: 'supplied', snapshot_ref: ref(b) }, source_refs: [ref(prior.outputs[0]), ref(sourceB)],
+    }))
+    expect(current.run.status).toBe('succeeded')
+    expect(current.outputs[0].content.market_claim_ids).toEqual(['claim_2'])
+    expect(s.calls[1].artifacts).toEqual(expect.arrayContaining([a, b, sourceA, sourceB]))
+  })
   it('does not let current output borrow claim support from retained research A', async () => {
-    const s = await setup(snapshot(), {}, { market_claim_ids: ['claim_1'] })
+    const s = await setup(snapshot(), {}, { market_claim_ids: ['claim_1'] }, { nested: [{ market_claim_ids: ['claim_1'] }] })
     const direction = await s.run()
     expect(direction.run.status).toBe('succeeded')
     const bContent = snapshot(); bContent.claims[0].claim_id = 'claim_2'

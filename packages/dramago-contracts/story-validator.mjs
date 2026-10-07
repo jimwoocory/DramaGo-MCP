@@ -47,19 +47,46 @@ const planningLabels = new Set(['ACT', 'ACTION', 'ARC', 'BEAT', 'CHARACTER', 'CO
 function assertPlanningStrings(value, code) {
     if (typeof value === 'string') {
         // Deliberately conservative, not a general screenplay classifier. A lone
-        // NAME: synopsis is ambiguous; require quoted speech or adjacent cues
-        // with direct-address speech, not merely a list of character summaries.
+        // NAME: synopsis or NAME/newline/synopsis is ambiguous. Require quoted
+        // speech, adjacent cues with direct address, or a parenthetical and speech.
+        // Planning headings and character summaries alone are not dialogue.
         // Line anchors preserve ordinary prose discussing INT./EXT. or CUT TO:.
+        const inlineCue = /^([A-Z][A-Z0-9 .’'-]{0,59})(?:[ \t]+\((?:V\.O\.|O\.S\.)\))?:[ \t]*(\S.*)$/;
+        const blockCue = /^([A-Z][A-Z0-9 .’'-]{0,59})(?:[ \t]+\((?:V\.O\.|O\.S\.)\))?$/;
+        const slugline = /^(?:INT\.(?:\/EXT\.)?|EXT\.|INT\/EXT\.)[ \t]+[A-Z0-9][A-Z0-9 .,'’()\/&–—-]*$/;
+        const transition = /^CUT TO:[ \t]*$/;
+        const lines = value.split(/[\x0a\x0d]/).map(line => line.trim()).filter(Boolean);
         let previousCue = false, previousSpeech = false;
-        for (const line of value.split(/[\x0a\x0d]/).map(line => line.trim())) {
-            if (!line) continue;
-            const slugline = /^(?:INT\.(?:\/EXT\.)?|EXT\.|INT\/EXT\.)[ \t]+[A-Z0-9][A-Z0-9 .,'’()\/&–—-]*$/.test(line);
-            const transition = /^CUT TO:[ \t]*$/.test(line);
-            const cue = /^([A-Z][A-Z0-9 .’'-]{0,59})(?:[ \t]+\((?:V\.O\.|O\.S\.)\))?:[ \t]*(\S.*)$/.exec(line);
+        for (let index = 0; index < lines.length; index++) {
+            const line = lines[index];
+            let cue = inlineCue.exec(line), parenthetical = false;
+            const standalone = blockCue.exec(line);
+            if (!cue && standalone && !planningLabels.has(standalone[1].trim())) {
+                let next = index + 1;
+                parenthetical = /^\([^()]+\)$/.test(lines[next] ?? '');
+                if (parenthetical) next++;
+                const body = [];
+                // Keep wrapped speech together, but leave structural markers,
+                // next cues and planning headings for the outer loop to inspect.
+                while (next < lines.length && !blockCue.test(lines[next]) && !inlineCue.test(lines[next])
+                    && !slugline.test(lines[next]) && !transition.test(lines[next])) {
+                    body.push(lines[next++]);
+                }
+                if (body.length) {
+                    cue = [line, standalone[1], body.join(' ')];
+                    index = next - 1;
+                }
+            }
             const speaker = cue && !planningLabels.has(cue[1].trim());
-            const speech = speaker && /\b(?:I|me|my|mine|we|us|our|ours|you|your|yours)\b|[?!]$/i.test(cue[2]);
-            const dialogue = speaker && ((previousCue && (previousSpeech || speech)) || /^["“‘'].*["”’'][.!?]?$/.test(cue[2]));
-            check(!slugline && !transition && !dialogue,
+            // Uppercase US may be an acronym; bare I may be a Roman numeral.
+            // Conservatively require clause-initial I + a word, or a pronoun
+            // contraction, rather than treating every isolated I as speech.
+            const speech = speaker && (/\b(?:me|my|mine|we|our|ours|you|your|yours)\b|[?!]$/i.test(cue[2])
+                || /\b(?:us|Us)\b/.test(cue[2])
+                || /(?:^|[.!?,;:]\s*)I\s+[a-z]|\bI['’](?:m|d|ll|ve)\b/i.test(cue[2]));
+            const dialogue = speaker && ((previousCue && (previousSpeech || speech)) || (parenthetical && speech)
+                || /^["“‘'].*["”’'][.!?]?$/.test(cue[2]));
+            check(!slugline.test(line) && !transition.test(line) && !dialogue,
                 'screenplay formatting is not allowed in Story planning content', code);
             previousCue = Boolean(speaker);
             previousSpeech = Boolean(speech);

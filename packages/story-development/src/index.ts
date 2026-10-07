@@ -5,7 +5,7 @@ import { check, commandValid, exact, freeze, projectAt, ref, reference, text, un
 import { STORY_POLICY_VERSION, artifactRole, contentObject, researchSnapshot, marketClaimsValid, validateContent } from './policy.js'
 import { assertShape, policy } from './contracts.js'
 import { independentReviewer, reviewValid } from './review.js'
-import { coherentBindings, contextOf, executionId, manifestRefs, resolveDependencies, resolveIn, validateContext, validateGraph, validateSet } from './dependencies.js'
+import { coherentBindings, contextOf, executionId, manifestRefs, resolveDependencies, resolveIn, validateContext, validateGraph, validateResearchGraph, validateSet } from './dependencies.js'
 export type * from './ports.js'
 export { STEP_POLICIES, STORY_POLICY_VERSION } from './policy.js'
 
@@ -80,13 +80,7 @@ export class StoryDevelopmentService {
       validateContext(context, artifacts)
       await validateGraph(tx, artifacts, this.options.allowSyntheticResearch === true)
       coherentBindings(c, artifacts)
-      for (const input of artifacts) {
-        // validateGraph has verified generated inputs and their exact provenance.
-        // Retained output claims belong to that frozen context, not today's run.
-        const contextRef = contentObject(input).run_context_ref
-        const provenance = contextRef ? contextOf(resolveIn(artifacts, contextRef as unknown as ArtifactRef)) : c
-        marketClaimsValid(input.content, provenance.research.status === 'supplied' ? resolveIn(artifacts, provenance.research.snapshot_ref) : undefined)
-      }
+      validateResearchGraph(command.context_ref, artifacts)
       if (isReview) await independentReviewer(tx, project, executor.identity, artifacts,
         this.options.authorship ? { attest: request => this.bounded(signal => this.options.authorship!.attest(request, signal)) } : undefined,
         this.options.allowSyntheticResearch === true, [this.options.generation.configuration_ref, this.options.review.configuration_ref])

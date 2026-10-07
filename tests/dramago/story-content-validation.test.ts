@@ -42,9 +42,26 @@ const screenplayFormats = [
   ['interior slugline', 'INT. ROOM - NIGHT'],
   ['embedded exterior slugline', 'Maya faces a choice.\n  EXT. CITY STREET - DAY\nShe risks discovery.'],
   ['dialogue block', 'MAYA: Leave now.\nELI: I cannot.'],
+  ['reviewer screenplay bypass', 'MAYA\n(whispering)\nI know what you did.\n\nELI\nThen keep your voice down.'],
+  ['standalone cues without parentheticals', 'MAYA\nI know what you did.\nELI\nThen keep your voice down.'],
+  ['wrapped standalone speech', 'MAYA\nI know what you did\nlast summer.\nELI\nThen keep your voice down.'],
+  ['wrapped parenthetical speech', 'MAYA\n(whispering)\nLast summer,\nI saw what you did.'],
+  ['wrapped speech before colon cue', 'MAYA\nLeave now.\nTonight.\nELI: I cannot.'],
+  ['transition after wrapped body', 'MAYA\nA reluctant leader\nlearning to trust.\nCUT TO:'],
+  ['slugline after wrapped body', 'MAYA\nA reluctant leader\nlearning to trust.\nINT./EXT. CAR - NIGHT'],
+  ['indented CRLF voiceover cues', '  MAYA (V.O.)\r\n  (whispering)\r\n  I know what you did.\r\n\r\n  ELI (O.S.)\r\n  Then keep your voice down.'],
+  ['single parenthetical speech block', 'MAYA\n(whispering)\nI know what you did.'],
+  ['mixed standalone and colon cues', 'MAYA\nLeave now.\nELI: I cannot.'],
+  ['lowercase us is speech', 'MAYA: Stay with us.\nELI: Not tonight.'],
+  ['sentence-initial Us is speech', 'MAYA: Us against the world.\nELI: Not tonight.'],
+  ['sentence-initial pronoun I is speech', 'MAYA\n(whispering)\nI remember everything.'],
+  ['clause-initial pronoun I in wrapped speech', 'MAYA\n(whispering)\nLast summer,\nI saw everything.'],
+  ['contracted pronoun I is speech', "MAYA\n(whispering)\nTonight I'm leaving."],
   ['embedded indented dialogue block', 'The confrontation escalates.\r\n  MAYA: Leave now.\r\n\r\n  ELI: I cannot.'],
   ['quoted dialogue cue', 'MAYA: "Leave now."'],
   ['transition', 'CUT TO:'],
+  ['transition after standalone cue', 'MAYA\nCUT TO:'],
+  ['combined slugline after standalone cue', 'MAYA\nINT./EXT. CAR - NIGHT'],
   ['embedded transition', 'The confrontation escalates.\r\n  CUT TO:\r\nThe fallout begins.'],
 ] as const
 
@@ -57,6 +74,22 @@ const planningProse = [
   'MAYA: A reluctant leader who learns to trust.',
   'Maya: reluctant leader.\nEli: compromised ally.',
   'MAYA: A reluctant leader who learns to trust.\nELI: A compromised ally seeking redemption.',
+  'MAYA: A former US Army medic searching for her brother.\nELI: A compromised ally seeking redemption.',
+  'MAYA: A US Navy veteran.\nELI: An ally based in the US.',
+  'MAYA\nA former US Army medic searching for her brother.\n\nELI\nA compromised ally seeking redemption.',
+  'MAYA\n(background)\nA former US Army medic searching for her brother.',
+  'MAYA\n(background)\nA former World War I medic searching for her brother.',
+  'MAYA: A former World War I medic searching for her brother.\nELI: A compromised ally seeking redemption.',
+  'MAYA\n(background)\nA former World War\nI medic searching for her brother.',
+  'MAYA\n(background)\nA former US Army medic\nsearching for her brother.',
+  'MAYA\n(background)\nA former Queen Mary I adviser\nsearching for her brother.',
+  'MAYA\nA reluctant leader who learns to trust.\nELI\nA compromised ally seeking redemption.',
+  'MAYA\nA reluctant leader\nwho learns to trust.\nELI\nA compromised ally\nseeking redemption.',
+  'MAYA\n(background)\nA reluctant leader\nwho learns to trust.',
+  'MAYA\n(background)\nA reluctant leader\nwho learns to trust.\nGOAL\nWe explore the cost of trust.',
+  'MAYA\n(background)\nA reluctant leader\nwho learns to trust.\nGOAL: We explore the cost of trust.',
+  'GOAL\nWe explore the cost of trust.\nSTAKES\nOur characters risk their home.',
+  'MAYA',
   'She treats the phrase "Leave now" as a threat, not a request.',
   'The INT. ROOM - NIGHT heading is discussed here, not used as a scene heading.',
 ] as const
@@ -150,6 +183,15 @@ it.each(screenplayFormats)('shared semantic authority rejects %s with the caller
   expect(() => contracts.assertShape('direction', resealed.content)).not.toThrow()
   expect(() => shared.validateContent(resealed, f.context('direction'), f.artifacts, 'BAD_CONTENT'))
     .toThrowError(expect.objectContaining({ code: 'BAD_CONTENT', message: 'screenplay formatting is not allowed in Story planning content' }))
+})
+
+it.each(planningProse)('shared semantic authority accepts normal planning prose: %s', async text => {
+  const shared = await import('../../packages/dramago-contracts/story-validator.mjs')
+  const f = fixture(), v = f.get('direction')
+  v.content.logline = text
+  const resealed = seal(v)
+  expect(() => contracts.assertShape('direction', resealed.content)).not.toThrow()
+  expect(() => shared.validateContent(resealed, f.context('direction'), f.artifacts, 'INVALID_GENERATION_OUTPUT')).not.toThrow()
 })
 
 it('identifies roles only through schema versions, and checks content shape and kind', () => {

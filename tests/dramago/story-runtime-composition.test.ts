@@ -43,11 +43,18 @@ async function reviewSetup() {
 }
 
 describe('public Story tool -> local adapter -> actual runtime -> InMemory repository', () => {
-  it('fails generated screenplay prose through the public composition without publishing it', async () => {
+  it.each([
+    ['slugline and colon cues', 'INT. ROOM - NIGHT\nMAYA: Leave now.\nCUT TO:'],
+    ['reviewer screenplay bypass', 'MAYA\n(whispering)\nI know what you did.\n\nELI\nThen keep your voice down.'],
+    ['standalone cues without parentheticals', 'MAYA\nI know what you did.\nELI\nThen keep your voice down.'],
+    ['wrapped standalone speech', 'MAYA\nI know what you did\nlast summer.\nELI\nThen keep your voice down.'],
+    ['wrapped parenthetical speech', 'MAYA\n(whispering)\nLast summer,\nI saw what you did.'],
+    ['clause-initial pronoun I in wrapped speech', 'MAYA\n(whispering)\nLast summer,\nI saw everything.'],
+  ])('fails generated %s through the public composition without publishing it', async (_name, text) => {
     let generated: any
     const s = await setup({ generate: async (request: any, generate: any) => {
       const bundle = await generate(request)
-      bundle.proposals[0].content.logline = 'INT. ROOM - NIGHT\nMAYA: Leave now.\nCUT TO:'
+      bundle.proposals[0].content.logline = text
       generated = seal(bundle.proposals[0])
       bundle.proposals[0] = generated
       return bundle
@@ -66,8 +73,88 @@ describe('public Story tool -> local adapter -> actual runtime -> InMemory repos
     expect(s.store._state.projects).toEqual(before.projects)
     expect(s.store._state.baselines.size).toBe(0)
     expect(s.store._state.approvals.size).toBe(0)
+    const failedState = structuredClone(s.store._state)
     expect(await s.app.callTool('dramago_story_step_run', s.input, auth)).toEqual(response)
     expect(s.calls).toHaveLength(1)
+    expect(s.store._state).toEqual(failedState)
+  })
+
+  it.each([
+    'MAYA: A former US Army medic searching for her brother.\nELI: A compromised ally seeking redemption.',
+    'MAYA\nA former US Army medic searching for her brother.\n\nELI\nA compromised ally seeking redemption.',
+    'MAYA\n(background)\nA former World War I medic searching for her brother.',
+    'MAYA\n(background)\nA former World War\nI medic searching for her brother.',
+    'MAYA\n(background)\nA former US Army medic\nsearching for her brother.',
+    'MAYA\nA reluctant leader\nwho learns to trust.\nELI\nA compromised ally\nseeking redemption.',
+    'MAYA\n(background)\nA reluctant leader\nwho learns to trust.',
+    'MAYA\n(background)\nA reluctant leader\nwho learns to trust.\nGOAL\nWe explore the cost of trust.',
+    'GOAL\nWe explore the cost of trust.\nSTAKES\nOur characters risk their home.',
+  ])('publishes legitimate planning unchanged through the public composition: %s', async text => {
+    const s = await setup({ generate: async (request: any, generate: any) => {
+      const bundle = await generate(request)
+      bundle.proposals[0].content.logline = text
+      bundle.proposals[0] = seal(bundle.proposals[0])
+      return bundle
+    } })
+    const { response, outputs } = await s.execute(s.input)
+    expect(s.runStep).toHaveBeenLastCalledWith(auth, s.input)
+    expect(outputs[0].content.logline).toBe(text)
+    const succeededState = structuredClone(s.store._state)
+    expect(await s.app.callTool('dramago_story_step_run', s.input, auth)).toEqual(response)
+    expect(s.calls).toHaveLength(1)
+    expect(s.store._state).toEqual(succeededState)
+  })
+
+  it('preserves observed research provenance for historical imports through public adaptation', async () => {
+    const s = await setup({
+      config: { allowSyntheticResearch: undefined },
+      generate: async (request: any, generate: any) => {
+        const bundle = await generate(request)
+        if (bundle.proposals[0].content.schema_version === 'dramago.direction/v1') {
+          bundle.proposals[0].content.market_claim_ids = ['claim_a']
+          bundle.proposals[0] = seal(bundle.proposals[0])
+        }
+        return bundle
+      },
+    })
+    // Offline observed-shape fixtures test provenance, not the truth of prose.
+    const content = structuredClone(s.seed('research').content)
+    content.data_class = 'observed'
+    content.claims = [{ ...content.claims[0], claim_id: 'claim_a' }]
+    const a = await s.put(content)
+    const b = await s.put({ ...content, claims: [{ ...content.claims[0], claim_id: 'claim_b' }] })
+    const source = await s.put({ nested: [{ market_claim_ids: ['claim_a'] }] })
+    const direction = await s.execute(await s.command('direction', {
+      research: { status: 'supplied', snapshot_ref: ref(a) }, source_refs: [ref(source)],
+    }))
+    const command = await s.command('adaptation', {
+      research: { status: 'supplied', snapshot_ref: ref(b) }, source_refs: [],
+    })
+    const adaptation = await s.execute(command)
+    expect(s.runStep).toHaveBeenLastCalledWith(auth, command)
+    expect(s.calls[1].artifacts).toEqual(expect.arrayContaining([source, a, b, direction.outputs[0]]))
+    expect(adaptation.outputs[0].content.dependency_refs).toContainEqual(ref(b))
+    expect(await s.store.getArtifactVersion(source.version_id)).toEqual(source)
+    expect(await s.store.getArtifactVersion(direction.outputs[0].version_id)).toEqual(direction.outputs[0])
+    const succeededState = structuredClone(s.store._state)
+    expect(await s.app.callTool('dramago_story_step_run', command, auth)).toEqual(adaptation.response)
+    expect(s.store._state).toEqual(succeededState)
+    expect(s.calls).toHaveLength(2)
+    expect(s.researchCalls.map((r: any) => r.snapshot_ref)).toEqual([ref(a), ref(b)])
+
+    const unsupported = await s.command('direction', {
+      research: { status: 'supplied', snapshot_ref: ref(b) }, source_refs: [ref(direction.outputs[0])],
+    })
+    const before = structuredClone(s.store._state)
+    const response = await s.app.callTool('dramago_story_step_run', unsupported, auth)
+    expect(response.isError).toBe(false)
+    const failed = await s.store.getRun(response.structuredContent.creative_run_id)
+    expect(failed.status).toBe('failed')
+    expect(failed.steps[0].attempts[0].output_refs).toEqual([])
+    expect([...s.store._state.audit.values()].at(-1)).toMatchObject({ error_code: 'INVALID_GENERATION_OUTPUT' })
+    expect(s.store._state.versions).toEqual(before.versions)
+    expect(s.store._state.projects).toEqual(before.projects)
+    expect(s.calls).toHaveLength(3)
   })
 
   it('passes only the published direction DTO and returns only the persisted run identity, including replay', async () => {

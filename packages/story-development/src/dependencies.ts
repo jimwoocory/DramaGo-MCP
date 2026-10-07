@@ -3,7 +3,7 @@ import type { ArtifactRef, ArtifactVersion, ProjectFact, RunContext, StoryReposi
 import { check, exact, ref, uniqueRefs } from './validation.js'
 import { trustedWriter } from './authorship.js'
 import { assertShape, policy } from './contracts.js'
-import { artifactRole, contentObject, researchSnapshot, roleKind, validateContent } from './policy.js'
+import { artifactRole, contentObject, marketClaimsValid, researchSnapshot, roleKind, validateContent } from './policy.js'
 
 export const contextOf = (v: ArtifactVersion): RunContext => v.content as unknown as RunContext
 export const executionId = (context: ArtifactRef): string => `run_story_${canonicalHash(context).slice(7)}`
@@ -42,6 +42,28 @@ export async function resolveDependencies(tx: StoryRepository, project: ProjectF
     for (const child of uniqueRefs([...contentRefs(v.content), ...(v.parent_ref ? [v.parent_ref] : [])]).reverse()) pending.push({ r: child, exit: false })
   }
   return [...resolved.values()]
+}
+
+/** Preserve research per historical edge, never a union or first-visited source. */
+export function validateResearchGraph(contextRef: ArtifactRef, artifacts: ArtifactVersion[]) {
+  const pending = [{ r: contextRef, contextRef }], seen = new Set<string>()
+  while (pending.length) {
+    const entry = pending.pop()!
+    const v = resolveIn(artifacts, entry.r)
+    // validateGraph has already checked typed contexts and generated provenance.
+    // Raw imports/parents inherit the context of the edge that reached them.
+    const provenance = artifactRole(v) === 'run_context' ? ref(v)
+      : contentObject(v).run_context_ref as unknown as ArtifactRef | undefined
+    const selectedContext = provenance ?? entry.contextRef
+    const key = canonicalHash([entry.r, selectedContext])
+    if (seen.has(key)) continue
+    seen.add(key)
+    const c = contextOf(resolveIn(artifacts, selectedContext))
+    marketClaimsValid(v.content, c.research.status === 'supplied' ? resolveIn(artifacts, c.research.snapshot_ref) : undefined)
+    for (const child of uniqueRefs([...contentRefs(v.content), ...(v.parent_ref ? [v.parent_ref] : [])])) {
+      pending.push({ r: child, contextRef: selectedContext })
+    }
+  }
 }
 
 export function validateContext(v: ArtifactVersion, artifacts: ArtifactVersion[]) {

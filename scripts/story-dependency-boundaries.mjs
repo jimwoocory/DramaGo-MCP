@@ -68,6 +68,10 @@ export function validateStoryMediaBoundary(root) {
         report(file, ts.flattenDiagnosticMessageText(error.messageText, '\n'))
       }
       checkRef(file, parsed.options.baseUrl)
+      // Virtual source and type roots can redirect innocuous dependencies into Media.
+      // Use parsed options so inherited JSONC paths retain their declaring base.
+      for (const directory of [...(parsed.options.rootDirs ?? []), ...(parsed.options.typeRoots ?? [])]) checkRef(file, directory)
+      for (const type of parsed.options.types ?? []) checkRef(file, type)
       for (const targets of Object.values(parsed.options.paths ?? {})) {
         for (const target of targets) checkRef(file, target, parsed.options.baseUrl ?? parsed.options.pathsBasePath ?? path.dirname(file))
       }
@@ -75,6 +79,9 @@ export function validateStoryMediaBoundary(root) {
     }
     if (!/\.[cm]?[jt]sx?$/.test(file)) continue
     const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true)
+    // These directives are compiler dependencies, not AST import declarations.
+    // Compiler metadata excludes lookalikes in strings and ordinary comments.
+    for (const ref of [...source.referencedFiles, ...source.typeReferenceDirectives]) checkRef(file, ref.fileName)
     const check = node => {
       if (!node || !(ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node))) {
         report(file, 'computed module dependency requires explicit review')
