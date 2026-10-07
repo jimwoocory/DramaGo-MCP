@@ -1,0 +1,1464 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dramago.invalid/p2/v1/story-development.schema.json",
+  "title": "DramaGo P2 Story Development content and port contracts",
+  "$comment": "Content definitions, not new fact envelopes or runtime services. Validate named definitions explicitly; also resolve cross-record semantic gates documented in P2-STORY-CONTRACTS.md.",
+  "$defs": {
+    "artifact_ref": {
+      "$ref": "common.schema.json#/$defs/artifact_ref"
+    },
+    "planning_scope": {
+      "$ref": "drama-project.schema.json#/properties/planning_range"
+    },
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "idea": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": "dramago.story-idea/v1"
+        },
+        "premise": {
+          "$ref": "#/$defs/text"
+        },
+        "constraints": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/text"
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "schema_version",
+        "premise",
+        "constraints"
+      ],
+      "additionalProperties": false
+    },
+    "research_snapshot": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": "dramago.research-snapshot/v1"
+        },
+        "data_class": {
+          "enum": [
+            "observed",
+            "synthetic"
+          ]
+        },
+        "as_of": {
+          "$ref": "common.schema.json#/$defs/timestamp"
+        },
+        "territories": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/text"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "question": {
+          "$ref": "#/$defs/text"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "source_id": {
+                "$ref": "common.schema.json#/$defs/stable_id"
+              },
+              "locator": {
+                "$ref": "#/$defs/text"
+              },
+              "title": {
+                "$ref": "#/$defs/text"
+              },
+              "captured_at": {
+                "$ref": "common.schema.json#/$defs/timestamp"
+              },
+              "content_digest": {
+                "$ref": "common.schema.json#/$defs/content_digest"
+              },
+              "excerpt": {
+                "$ref": "#/$defs/text"
+              }
+            },
+            "required": [
+              "source_id",
+              "locator",
+              "title",
+              "captured_at",
+              "content_digest",
+              "excerpt"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "claims": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "claim_id": {
+                "$ref": "common.schema.json#/$defs/stable_id"
+              },
+              "statement": {
+                "$ref": "#/$defs/text"
+              },
+              "source_ids": {
+                "type": "array",
+                "items": {
+                  "$ref": "common.schema.json#/$defs/stable_id"
+                },
+                "minItems": 1,
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "claim_id",
+              "statement",
+              "source_ids"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/text"
+          },
+          "minItems": 0,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "schema_version",
+        "data_class",
+        "as_of",
+        "territories",
+        "question",
+        "sources",
+        "claims",
+        "limitations"
+      ],
+      "additionalProperties": false
+    },
+    "research_selection": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "enum": [
+            "supplied",
+            "omitted"
+          ]
+        },
+        "snapshot_ref": {
+          "$ref": "#/$defs/artifact_ref"
+        },
+        "reason": {
+          "$ref": "#/$defs/text"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "supplied"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "snapshot_ref"
+            ],
+            "not": {
+              "required": [
+                "reason"
+              ]
+            }
+          },
+          "else": {
+            "required": [
+              "reason"
+            ],
+            "not": {
+              "required": [
+                "snapshot_ref"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "causal_beat": {
+      "type": "object",
+      "properties": {
+        "beat_id": {
+          "$ref": "common.schema.json#/$defs/stable_id"
+        },
+        "cause": {
+          "$ref": "#/$defs/text"
+        },
+        "action": {
+          "$ref": "#/$defs/text"
+        },
+        "consequence": {
+          "$ref": "#/$defs/text"
+        },
+        "predecessor_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/stable_id"
+          },
+          "minItems": 0,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "beat_id",
+        "cause",
+        "action",
+        "consequence",
+        "predecessor_ids"
+      ],
+      "additionalProperties": false
+    },
+    "direction": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": "dramago.direction/v1"
+        },
+        "run_context_ref": {
+          "$ref": "#/$defs/artifact_ref"
+        },
+        "dependency_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/artifact_ref"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "logline": {
+          "$ref": "#/$defs/text"
+        },
+        "audience": {
+          "$ref": "#/$defs/text"
+        },
+        "genre": {
+          "$ref": "#/$defs/text"
+        },
+        "tone": {
+          "$ref": "#/$defs/text"
+        },
+        "story_promise": {
+          "$ref": "#/$defs/text"
+        },
+        "differentiation": {
+          "$ref": "#/$defs/text"
+        },
+        "market_claim_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/stable_id"
+          },
+          "minItems": 0,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "schema_version",
+        "run_context_ref",
+        "dependency_refs",
+        "logline",
+        "audience",
+        "genre",
+        "tone",
+        "story_promise",
+        "differentiation",
+        "market_claim_ids"
+      ],
+      "additionalProperties": false
+    },
+    "story_foundation": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": "dramago.story-foundation/v1"
+        },
+        "run_context_ref": {
+          "$ref": "#/$defs/artifact_ref"
+        },
+        "dependency_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/artifact_ref"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "premise": {
+          "$ref": "#/$defs/text"
+        },
+        "theme": {
+          "$ref": "#/$defs/text"
+        },
+        "conflict": {
+          "$ref": "#/$defs/text"
+        },
+        "stakes": {
+          "$ref": "#/$defs/text"
+        },
+        "adaptation": {
+          "type": "object",
+          "properties": {
+            "mode": {
+              "enum": [
+                "original",
+                "adapted"
+              ]
+            },
+            "source_refs": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/artifact_ref"
+              },
+              "minItems": 0,
+              "uniqueItems": true
+            },
+            "decisions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/text"
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            }
+          },
+          "required": [
+            "mode",
+            "source_refs",
+            "decisions"
+          ],
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "mode": {
+                    "const": "adapted"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "source_refs": {
+                    "minItems": 1
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "run_context_ref",
+        "dependency_refs",
+        "premise",
+        "theme",
+        "conflict",
+        "stakes",
+        "adaptation"
+      ],
+      "additionalProperties": false
+    },
+    "story_bible": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": "dramago.story-bible/v1"
+        },
+        "run_context_ref": {
+          "$ref": "#/$defs/artifact_ref"
+        },
+        "dependency_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/artifact_ref"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "characters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "character_id": {
+                "$ref": "common.schema.json#/$defs/stable_id"
+              },
+              "want": {
+                "$ref": "#/$defs/text"
+              },
+              "need": {
+                "$ref": "#/$defs/text"
+              },
+              "contradiction": {
+                "$ref": "#/$defs/text"
+              }
+            },
+            "required": [
+              "character_id",
+              "want",
+              "need",
+              "contradiction"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "relationships": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/text"
+          },
+          "minItems": 0,
+          "uniqueItems": true
+        },
+        "story_engine": {
+          "$ref": "#/$defs/text"
+        },
+        "canon_rules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/text"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "promises": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "promise_id": {
+                "$ref": "common.schema.json#/$defs/stable_id"
+              },
+              "setup": {
+                "$ref": "#/$defs/text"
+              },
+              "payoff": {
+                "$ref": "#/$defs/text"
+              }
+            },
+            "required": [
+              "promise_id",
+              "setup",
+              "payoff"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "schema_version",
+        "run_context_ref",
+        "dependency_refs",
+        "characters",
+        "relationships",
+        "story_engine",
+        "canon_rules",
+        "promises"
+      ],
+      "additionalProperties": false
+    },
+    "master_outline": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": "dramago.master-outline/v1"
+        },
+        "run_context_ref": {
+          "$ref": "#/$defs/artifact_ref"
+        },
+        "dependency_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/artifact_ref"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "opening": {
+          "$ref": "#/$defs/text"
+        },
+        "ending": {
+          "$ref": "#/$defs/text"
+        },
+        "causal_beats": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/causal_beat"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "character_arcs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/text"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "schema_version",
+        "run_context_ref",
+        "dependency_refs",
+        "opening",
+        "ending",
+        "causal_beats",
+        "character_arcs"
+      ],
+      "additionalProperties": false
+    },
+    "season_architecture": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": "dramago.season-architecture/v1"
+        },
+        "run_context_ref": {
+          "$ref": "#/$defs/artifact_ref"
+        },
+        "dependency_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/artifact_ref"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "ordered_episode_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/stable_id"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "movements": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "movement_id": {
+                "$ref": "common.schema.json#/$defs/stable_id"
+              },
+              "episode_ids": {
+                "type": "array",
+                "items": {
+                  "$ref": "common.schema.json#/$defs/stable_id"
+                },
+                "minItems": 1,
+                "uniqueItems": true
+              },
+              "dramatic_function": {
+                "$ref": "#/$defs/text"
+              },
+              "turning_point": {
+                "$ref": "#/$defs/text"
+              }
+            },
+            "required": [
+              "movement_id",
+              "episode_ids",
+              "dramatic_function",
+              "turning_point"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "promise_schedule": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "promise_id": {
+                "$ref": "common.schema.json#/$defs/stable_id"
+              },
+              "setup_episode_id": {
+                "$ref": "common.schema.json#/$defs/stable_id"
+              },
+              "payoff_episode_id": {
+                "$ref": "common.schema.json#/$defs/stable_id"
+              }
+            },
+            "required": [
+              "promise_id",
+              "setup_episode_id",
+              "payoff_episode_id"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "schema_version",
+        "run_context_ref",
+        "dependency_refs",
+        "ordered_episode_ids",
+        "movements",
+        "promise_schedule"
+      ],
+      "additionalProperties": false
+    },
+    "episode_outline": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": "dramago.episode-outline/v1"
+        },
+        "run_context_ref": {
+          "$ref": "#/$defs/artifact_ref"
+        },
+        "dependency_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/artifact_ref"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "episode_id": {
+          "$ref": "common.schema.json#/$defs/stable_id"
+        },
+        "title": {
+          "$ref": "#/$defs/text"
+        },
+        "opening_hook": {
+          "$ref": "#/$defs/text"
+        },
+        "ending_hook": {
+          "$ref": "#/$defs/text"
+        },
+        "causal_beats": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/causal_beat"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "character_turns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/text"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "continuity_in": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/text"
+          },
+          "minItems": 0,
+          "uniqueItems": true
+        },
+        "continuity_out": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/text"
+          },
+          "minItems": 0,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "schema_version",
+        "run_context_ref",
+        "dependency_refs",
+        "episode_id",
+        "title",
+        "opening_hook",
+        "ending_hook",
+        "causal_beats",
+        "character_turns",
+        "continuity_in",
+        "continuity_out"
+      ],
+      "additionalProperties": false
+    },
+    "ordered_episodes": {
+      "$ref": "planning-baseline.schema.json#/properties/manifest/properties/ordered_episodes"
+    },
+    "episode_outline_set": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": "dramago.episode-outline-set/v1"
+        },
+        "run_context_ref": {
+          "$ref": "#/$defs/artifact_ref"
+        },
+        "dependency_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/artifact_ref"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "planning_scope": {
+          "$ref": "#/$defs/planning_scope"
+        },
+        "ordered_episodes": {
+          "$ref": "#/$defs/ordered_episodes"
+        }
+      },
+      "required": [
+        "schema_version",
+        "run_context_ref",
+        "dependency_refs",
+        "planning_scope",
+        "ordered_episodes"
+      ],
+      "additionalProperties": false
+    },
+    "executor": {
+      "type": "object",
+      "properties": {
+        "role": {
+          "enum": [
+            "writer",
+            "reviewer"
+          ]
+        },
+        "executor_id": {
+          "$ref": "common.schema.json#/$defs/stable_id"
+        },
+        "configuration_ref": {
+          "$ref": "#/$defs/artifact_ref"
+        }
+      },
+      "required": [
+        "role",
+        "executor_id",
+        "configuration_ref"
+      ],
+      "additionalProperties": false
+    },
+    "run_context": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": "dramago.story-run-context/v1"
+        },
+        "policy_version": {
+          "const": "story-development/v1"
+        },
+        "operation": {
+          "enum": [
+            "direction",
+            "adaptation",
+            "bible",
+            "master_outline",
+            "season_architecture",
+            "episode_outlines",
+            "planning_review"
+          ]
+        },
+        "project_revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "planning_scope": {
+          "$ref": "#/$defs/planning_scope"
+        },
+        "instructions": {
+          "$ref": "#/$defs/text"
+        },
+        "executor": {
+          "$ref": "#/$defs/executor"
+        },
+        "bindings": {
+          "type": "object",
+          "properties": {
+            "idea": {
+              "$ref": "#/$defs/artifact_ref"
+            },
+            "direction": {
+              "$ref": "#/$defs/artifact_ref"
+            },
+            "story_foundation": {
+              "$ref": "#/$defs/artifact_ref"
+            },
+            "story_bible": {
+              "$ref": "#/$defs/artifact_ref"
+            },
+            "master_outline": {
+              "$ref": "#/$defs/artifact_ref"
+            },
+            "season_architecture": {
+              "$ref": "#/$defs/artifact_ref"
+            },
+            "episode_outline_set": {
+              "$ref": "#/$defs/artifact_ref"
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/artifact_ref"
+          },
+          "minItems": 0,
+          "uniqueItems": true
+        },
+        "research": {
+          "$ref": "#/$defs/research_selection"
+        }
+      },
+      "required": [
+        "schema_version",
+        "policy_version",
+        "operation",
+        "project_revision",
+        "planning_scope",
+        "instructions",
+        "executor",
+        "bindings",
+        "source_refs",
+        "research"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "direction"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "bindings": {
+                "required": [
+                  "idea"
+                ],
+                "properties": {
+                  "direction": false,
+                  "story_foundation": false,
+                  "story_bible": false,
+                  "master_outline": false,
+                  "season_architecture": false,
+                  "episode_outline_set": false
+                }
+              },
+              "executor": {
+                "properties": {
+                  "role": {
+                    "const": "writer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "adaptation"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "bindings": {
+                "required": [
+                  "idea",
+                  "direction"
+                ],
+                "properties": {
+                  "story_foundation": false,
+                  "story_bible": false,
+                  "master_outline": false,
+                  "season_architecture": false,
+                  "episode_outline_set": false
+                }
+              },
+              "executor": {
+                "properties": {
+                  "role": {
+                    "const": "writer"
+                  }
+                }
+              },
+              "research": {
+                "properties": {
+                  "status": {
+                    "const": "supplied"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "bible"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "bindings": {
+                "required": [
+                  "story_foundation"
+                ],
+                "properties": {
+                  "idea": false,
+                  "direction": false,
+                  "story_bible": false,
+                  "master_outline": false,
+                  "season_architecture": false,
+                  "episode_outline_set": false
+                }
+              },
+              "executor": {
+                "properties": {
+                  "role": {
+                    "const": "writer"
+                  }
+                }
+              },
+              "research": {
+                "properties": {
+                  "status": {
+                    "const": "supplied"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "master_outline"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "bindings": {
+                "required": [
+                  "story_foundation",
+                  "story_bible"
+                ],
+                "properties": {
+                  "idea": false,
+                  "direction": false,
+                  "master_outline": false,
+                  "season_architecture": false,
+                  "episode_outline_set": false
+                }
+              },
+              "executor": {
+                "properties": {
+                  "role": {
+                    "const": "writer"
+                  }
+                }
+              },
+              "research": {
+                "properties": {
+                  "status": {
+                    "const": "supplied"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "season_architecture"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "bindings": {
+                "required": [
+                  "story_foundation",
+                  "story_bible",
+                  "master_outline"
+                ],
+                "properties": {
+                  "idea": false,
+                  "direction": false,
+                  "season_architecture": false,
+                  "episode_outline_set": false
+                }
+              },
+              "executor": {
+                "properties": {
+                  "role": {
+                    "const": "writer"
+                  }
+                }
+              },
+              "research": {
+                "properties": {
+                  "status": {
+                    "const": "supplied"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "episode_outlines"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "bindings": {
+                "required": [
+                  "story_foundation",
+                  "story_bible",
+                  "master_outline",
+                  "season_architecture"
+                ],
+                "properties": {
+                  "idea": false,
+                  "direction": false,
+                  "episode_outline_set": false
+                }
+              },
+              "executor": {
+                "properties": {
+                  "role": {
+                    "const": "writer"
+                  }
+                }
+              },
+              "research": {
+                "properties": {
+                  "status": {
+                    "const": "supplied"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "planning_review"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "bindings": {
+                "required": [
+                  "direction",
+                  "story_foundation",
+                  "story_bible",
+                  "master_outline",
+                  "season_architecture",
+                  "episode_outline_set"
+                ],
+                "properties": {
+                  "idea": false
+                }
+              },
+              "executor": {
+                "properties": {
+                  "role": {
+                    "const": "reviewer"
+                  }
+                }
+              },
+              "research": {
+                "properties": {
+                  "status": {
+                    "const": "supplied"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "step_request": {
+      "type": "object",
+      "properties": {
+        "project_id": {
+          "$ref": "common.schema.json#/$defs/stable_id"
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "idempotency_key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "\\S"
+        },
+        "context_ref": {
+          "$ref": "#/$defs/artifact_ref"
+        },
+        "step": {
+          "enum": [
+            "direction",
+            "adaptation",
+            "bible",
+            "master_outline",
+            "season_architecture",
+            "episode_outlines"
+          ]
+        }
+      },
+      "required": [
+        "project_id",
+        "expected_revision",
+        "idempotency_key",
+        "context_ref",
+        "step"
+      ],
+      "additionalProperties": false
+    },
+    "review_request": {
+      "type": "object",
+      "properties": {
+        "project_id": {
+          "$ref": "common.schema.json#/$defs/stable_id"
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "idempotency_key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "\\S"
+        },
+        "context_ref": {
+          "$ref": "#/$defs/artifact_ref"
+        }
+      },
+      "required": [
+        "project_id",
+        "expected_revision",
+        "idempotency_key",
+        "context_ref"
+      ],
+      "additionalProperties": false
+    },
+    "run_result": {
+      "type": "object",
+      "properties": {
+        "creative_run_id": {
+          "$ref": "common.schema.json#/$defs/stable_id"
+        }
+      },
+      "required": [
+        "creative_run_id"
+      ],
+      "additionalProperties": false
+    },
+    "finding": {
+      "type": "object",
+      "properties": {
+        "finding_id": {
+          "$ref": "common.schema.json#/$defs/stable_id"
+        },
+        "code": {
+          "$ref": "common.schema.json#/$defs/stable_id"
+        },
+        "severity": {
+          "enum": [
+            "info",
+            "warning",
+            "blocker"
+          ]
+        },
+        "subject_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/artifact_ref"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "message": {
+          "$ref": "#/$defs/text"
+        },
+        "remediation": {
+          "$ref": "#/$defs/text"
+        }
+      },
+      "required": [
+        "finding_id",
+        "code",
+        "severity",
+        "subject_refs",
+        "message",
+        "remediation"
+      ],
+      "additionalProperties": false
+    },
+    "planning_review_evidence": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": "dramago.planning-review-evidence/v1"
+        },
+        "run_context_ref": {
+          "$ref": "#/$defs/artifact_ref"
+        },
+        "dependency_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/artifact_ref"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "planning_scope": {
+          "$ref": "#/$defs/planning_scope"
+        },
+        "subject_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/artifact_ref"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "review_kind": { "const": "planning" },
+        "inspected_refs": { "type": "array", "items": { "$ref": "#/$defs/artifact_ref" }, "minItems": 1, "uniqueItems": true },
+        "reviewer_id": {
+          "$ref": "common.schema.json#/$defs/stable_id"
+        },
+        "reviewed_writer_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/stable_id"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "outcome": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "BLOCKED"
+          ]
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/finding"
+          },
+          "minItems": 0,
+          "uniqueItems": true
+        },
+        "blockers": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/stable_id"
+          },
+          "minItems": 0,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "schema_version",
+        "run_context_ref",
+        "dependency_refs",
+        "planning_scope",
+        "subject_refs",
+        "review_kind",
+        "inspected_refs",
+        "reviewer_id",
+        "reviewed_writer_ids",
+        "outcome",
+        "findings",
+        "blockers"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "outcome": {
+                "const": "PASS"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "blockers": {
+                "items": false
+              },
+              "findings": {
+                "items": {
+                  "properties": {
+                    "severity": {
+                      "enum": [
+                        "info",
+                        "warning"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "blockers": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "baseline_candidate": {
+      "$ref": "planning-baseline.schema.json#/properties/manifest"
+    },
+    "frozen_input": {
+      "type": "object",
+      "properties": {
+        "context_ref": {
+          "$ref": "#/$defs/artifact_ref"
+        },
+        "input_manifest": {
+          "$ref": "creative-run.schema.json#/properties/input_manifest"
+        },
+        "input_manifest_digest": {
+          "$ref": "common.schema.json#/$defs/content_digest"
+        },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "$ref": "artifact-version.schema.json"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "context_ref",
+        "input_manifest",
+        "input_manifest_digest",
+        "artifacts"
+      ],
+      "additionalProperties": false
+    },
+    "research_request": {
+      "type": "object",
+      "properties": {
+        "workspace_id": {
+          "$ref": "common.schema.json#/$defs/stable_id"
+        },
+        "project_id": {
+          "$ref": "common.schema.json#/$defs/stable_id"
+        },
+        "snapshot_ref": {
+          "$ref": "#/$defs/artifact_ref"
+        }
+      },
+      "required": [
+        "workspace_id",
+        "project_id",
+        "snapshot_ref"
+      ],
+      "additionalProperties": false
+    },
+    "research_response": {
+      "allOf": [
+        {
+          "$ref": "artifact-version.schema.json"
+        },
+        {
+          "properties": {
+            "kind": {
+              "const": "other_drama"
+            },
+            "content": {
+              "$ref": "#/$defs/research_snapshot"
+            }
+          }
+        }
+      ]
+    },
+    "proposal_bundle": {
+      "type": "object",
+      "properties": {
+        "proposals": {
+          "type": "array",
+          "items": {
+            "$ref": "artifact-version.schema.json"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "proposals"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

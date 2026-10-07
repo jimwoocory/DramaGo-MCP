@@ -1,0 +1,132 @@
+{
+  "policy_version": "story-development/v1",
+  "implementation_status": "contract_only",
+  "content_schema": "story-development.schema.json",
+  "content_kinds": {
+    "story_foundation": "story_foundation",
+    "story_bible": "story_bible",
+    "master_outline": "master_outline",
+    "season_architecture": "season_architecture",
+    "episode_outline": "episode_outline",
+    "idea": "other_drama",
+    "direction": "other_drama",
+    "research_snapshot": "other_drama",
+    "run_context": "other_drama",
+    "episode_outline_set": "other_drama",
+    "planning_review_evidence": "review_report"
+  },
+  "ports": {
+    "ResearchContextPort": {
+      "method": "resolve_snapshot",
+      "role": "research",
+      "input_definition": "research_request",
+      "output_definition": "research_response",
+      "output_content": "research_snapshot",
+      "implementation_status": "contract_only",
+      "can_approve": false
+    },
+    "StoryGenerationPort": {
+      "method": "generate",
+      "role": "writer",
+      "input_definition": "frozen_input",
+      "output_definition": "proposal_bundle",
+      "output_content": "step policy outputs, excluding application-assembled episode_outline_set",
+      "implementation_status": "contract_only",
+      "can_approve": false
+    },
+    "PlanningReviewPort": {
+      "method": "review",
+      "role": "reviewer",
+      "input_definition": "frozen_input",
+      "output_definition": "proposal_bundle",
+      "output_content": "planning_review_evidence",
+      "implementation_status": "contract_only",
+      "can_approve": false
+    }
+  },
+  "steps": {
+    "direction": {
+      "required_bindings": [
+        "idea"
+      ],
+      "outputs": [
+        "direction"
+      ],
+      "research": "optional",
+      "port": "StoryGenerationPort"
+    },
+    "adaptation": {
+      "required_bindings": [
+        "idea",
+        "direction"
+      ],
+      "outputs": [
+        "story_foundation"
+      ],
+      "research": "required",
+      "port": "StoryGenerationPort"
+    },
+    "bible": {
+      "required_bindings": [
+        "story_foundation"
+      ],
+      "outputs": [
+        "story_bible"
+      ],
+      "research": "required",
+      "port": "StoryGenerationPort"
+    },
+    "master_outline": {
+      "required_bindings": [
+        "story_foundation",
+        "story_bible"
+      ],
+      "outputs": [
+        "master_outline"
+      ],
+      "research": "required",
+      "port": "StoryGenerationPort"
+    },
+    "season_architecture": {
+      "required_bindings": [
+        "story_foundation",
+        "story_bible",
+        "master_outline"
+      ],
+      "outputs": [
+        "season_architecture"
+      ],
+      "research": "required",
+      "port": "StoryGenerationPort"
+    },
+    "episode_outlines": {
+      "required_bindings": [
+        "story_foundation",
+        "story_bible",
+        "master_outline",
+        "season_architecture"
+      ],
+      "outputs": [
+        "episode_outline",
+        "episode_outline_set"
+      ],
+      "research": "required",
+      "port": "StoryGenerationPort"
+    },
+    "planning_review": {
+      "required_bindings": [
+        "direction",
+        "story_foundation",
+        "story_bible",
+        "master_outline",
+        "season_architecture",
+        "episode_outline_set"
+      ],
+      "outputs": [
+        "planning_review_evidence"
+      ],
+      "research": "required",
+      "port": "PlanningReviewPort"
+    }
+  }
+}

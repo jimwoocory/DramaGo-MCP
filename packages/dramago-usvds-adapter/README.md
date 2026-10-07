@@ -1,6 +1,6 @@
 # External USVDS boundary
 
-Type-only contracts for a future externally supplied USVDS capability. This package has no runtime entry point, implementation, dependencies, filesystem access, transport, vendored source or creative stage logic. P2 creative execution remains unimplemented.
+Type-only contracts for a future externally supplied USVDS capability. This package has no runtime entry point, implementation, dependencies, filesystem access, transport, vendored source or creative stage logic. The local P2 Story Development runtime is implemented separately in [`packages/story-development`](../story-development/README.md), with injected offline ports; external USVDS stage execution remains unimplemented.
 
 Consume with `import type` from `@xiaoshuren/dramago-usvds-adapter`. The TypeScript project follows the workspace's composite NodeNext style but emits declarations only. The package export intentionally supplies only a `types` condition.
 

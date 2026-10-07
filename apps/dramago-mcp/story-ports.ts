@@ -1,0 +1,137 @@
+import { readFileSync } from 'node:fs';
+import { storyDefinitions as definitions, stableStoryId, exactStoryRef, validStoryRequest, storyResult } from './story-contract.js';
+import { canonicalHash, equal, DomainError } from '@xiaoshuren/dramago-application/domain.js';
+import type { ArtifactRef, ArtifactVersion, StoryDevelopmentService, StoryRepository, StoryStep } from '@xiaoshuren/story-development';
+
+export type StoryAuth = Readonly<{
+  tenantId: string;
+  subjectId: string;
+  clientId: string;
+  scopes: readonly string[];
+  defaultWorkspaceId?: string;
+}>;
+
+/** Public DTOs: story-development.schema.json step_request/review_request/run_result. */
+export type StoryCommand = Readonly<{
+  project_id: string;
+  idempotency_key: string;
+  expected_revision: number;
+  context_ref: ArtifactRef;
+}>;
+export type StoryStepCommand = StoryCommand & Readonly<{ step: StoryStep }>;
+export type StoryRunResult = Readonly<{ creative_run_id: string }>;
+export interface StoryWriterPort {
+  runStoryStep(auth: StoryAuth, input: StoryStepCommand): Promise<StoryRunResult> | StoryRunResult;
+}
+export interface StoryReviewerPort {
+  reviewPlanning(auth: StoryAuth, input: StoryCommand): Promise<StoryRunResult> | StoryRunResult;
+}
+/** No writer fallback for review, approval capability, or inferred registration. */
+export interface StoryService {
+  readonly writer?: StoryWriterPort;
+  readonly reviewer?: StoryReviewerPort;
+}
+
+type Facts = Pick<StoryRepository, 'getProject' | 'getArtifactVersion' | 'getBaselineByVersion' | 'authorize'>;
+const policy = JSON.parse(readFileSync(new URL('../../packages/dramago-contracts/contracts/story-development-policy.v1.json', import.meta.url), 'utf8'));
+
+const object = (v: unknown): v is Record<string, any> => v !== null && typeof v === 'object' && !Array.isArray(v);
+function check(value: unknown, message: string, code = 'VALIDATION_ERROR'): asserts value {
+  if (!value) throw new DomainError(code, message);
+}
+function text(v: unknown): asserts v is string { check(typeof v === 'string' && v.trim().length > 0, 'nonblank text required'); }
+function stable(v: unknown): asserts v is string {
+  check(stableStoryId(v), 'stable ID required');
+}
+function keys(v: unknown, required: string[], optional: string[] = []): asserts v is Record<string, any> {
+  check(object(v) && required.every(k => Object.hasOwn(v, k)) && Object.keys(v).every(k => [...required, ...optional].includes(k)), 'invalid DTO fields');
+}
+function exactRef(v: unknown): asserts v is ArtifactRef {
+  check(exactStoryRef(v), 'exact immutable reference required');
+}
+const reference = (v: ArtifactRef): ArtifactRef => ({ artifact_id: v.artifact_id, version_id: v.version_id, content_digest: v.content_digest });
+const unique = (refs: ArtifactRef[]) => [...new Map(refs.map(r => [canonicalHash(r), r])).values()];
+
+/** Explicit local anti-corruption boundary. Never resolves an artifact head/latest. */
+export function createLocalStoryPorts(service: StoryDevelopmentService, facts: Facts): StoryService {
+  async function prepare(auth: StoryAuth, input: StoryCommand | StoryStepCommand, operation: string) {
+    const command = structuredClone(input);
+    const actor = { tenantId: auth.tenantId, subjectId: auth.subjectId, clientId: auth.clientId, scopes: [...auth.scopes] };
+    check(validStoryRequest(operation === 'planning_review' ? 'dramago_planning_review' : 'dramago_story_step_run', command), 'invalid public Story request');
+    check(Object.hasOwn(policy.steps, operation), 'unsupported Story operation');
+    const action = operation === 'planning_review' ? 'story.review' : 'story.execute';
+    check(actor.scopes.includes(action), 'missing scope', 'FORBIDDEN');
+    const project = await facts.getProject(command.project_id);
+    check(project, 'project not found', 'NOT_FOUND');
+    stable(project.workspace_id);
+    check(await facts.authorize(actor, action, { project_id: command.project_id, workspace_id: project.workspace_id }) === true, 'authorization denied', 'FORBIDDEN');
+    async function resolve(r: ArtifactRef): Promise<ArtifactVersion> {
+      exactRef(r);
+      const v = await facts.getArtifactVersion(r.version_id);
+      check(v && equal(reference(v), r) && v.project_id === project!.project_id && v.workspace_id === project!.workspace_id, 'unresolved or foreign exact reference');
+      check(v.schema_version === 'dramago.artifact-version/v1' && !Object.hasOwn(v, 'manifest') && !await facts.getBaselineByVersion(r.version_id, command.project_id), 'invalid artifact envelope');
+      check(canonicalHash(v.content) === r.content_digest, 'stored content digest mismatch');
+      return structuredClone(v);
+    }
+    const context = await resolve(command.context_ref);
+    check(context.kind === 'other_drama', 'run context kind required');
+    const c: unknown = context.content;
+    keys(c, definitions.run_context.required);
+    check(c.schema_version === 'dramago.story-run-context/v1' && c.policy_version === policy.policy_version && Object.hasOwn(policy.steps, c.operation), 'context operation/policy mismatch');
+    // Inspect the stored context, not its compatibility with this command.
+    // Operation/revision mismatches must reach authoritative idempotency first.
+    const contextPolicy = policy.steps[c.operation];
+    keys(c.planning_scope, ['range_id', 'definition_ref', 'ordered_episode_ids']);
+    stable(c.planning_scope.range_id); exactRef(c.planning_scope.definition_ref);
+    check(Array.isArray(c.planning_scope.ordered_episode_ids) && c.planning_scope.ordered_episode_ids.length > 0 && new Set(c.planning_scope.ordered_episode_ids).size === c.planning_scope.ordered_episode_ids.length, 'ordered episode scope required');
+    c.planning_scope.ordered_episode_ids.forEach(stable);
+    text(c.instructions);
+    keys(c.executor, ['role', 'executor_id', 'configuration_ref']);
+    check(c.executor.role === (c.operation === 'planning_review' ? 'reviewer' : 'writer'), 'executor role mismatch');
+    stable(c.executor.executor_id);
+    keys(c.bindings, contextPolicy.required_bindings);
+    check(Array.isArray(c.source_refs), 'source refs required');
+    c.source_refs.forEach(exactRef);
+    check(unique(c.source_refs).length === c.source_refs.length, 'duplicate source refs');
+    keys(c.research, ['status'], ['snapshot_ref', 'reason']);
+    let research: ArtifactRef | null = null;
+    if (c.research.status === 'supplied') {
+      keys(c.research, ['status', 'snapshot_ref']); exactRef(c.research.snapshot_ref); research = c.research.snapshot_ref;
+    } else {
+      keys(c.research, ['status', 'reason']); text(c.research.reason);
+      check(c.research.status === 'omitted' && contextPolicy.research === 'optional', 'required research snapshot missing');
+    }
+    const refs = unique([command.context_ref, c.planning_scope.definition_ref, c.executor.configuration_ref, ...Object.values(c.bindings) as ArtifactRef[], ...c.source_refs, ...(research ? [research] : [])]);
+    for (const r of refs) await resolve(r);
+    for (const [role, r] of Object.entries(c.bindings)) {
+      const v = await resolve(r as ArtifactRef);
+      check(v.kind === policy.content_kinds[role], 'binding kind mismatch');
+      if (v.kind === 'other_drama') {
+        check(object(v.content) && (v.content.schema_version === definitions[role].properties.schema_version.const || v.content.artifact_role === role), 'binding content role mismatch');
+      }
+    }
+    // Preflight only: the immutable context and its dependency graph are
+    // interpreted by the authoritative runtime, never translated into old DTOs.
+    return { actor, command };
+  }
+  return Object.freeze({ writer: Object.freeze({
+    async runStoryStep(auth: StoryAuth, input: StoryStepCommand): Promise<StoryRunResult> {
+      const { actor, command } = await prepare(auth, input, input.step);
+      const result = await service.runStep(actor, {
+        project_id: command.project_id, expected_revision: command.expected_revision,
+        idempotency_key: command.idempotency_key, context_ref: command.context_ref,
+        step: (command as StoryStepCommand).step,
+      });
+      return storyResult(result);
+    },
+  }), reviewer: Object.freeze({
+    async reviewPlanning(auth: StoryAuth, input: StoryCommand): Promise<StoryRunResult> {
+      const { actor, command } = await prepare(auth, input, 'planning_review');
+      const result = await service.planningReview(actor, {
+        project_id: command.project_id, expected_revision: command.expected_revision,
+        idempotency_key: command.idempotency_key, context_ref: command.context_ref,
+      });
+      return storyResult(result);
+    },
+  }) });
+}

@@ -10,7 +10,8 @@
   },
   "references": [
     { "path": "../../packages/contracts" },
-    { "path": "../../packages/media-application" }
+    { "path": "../../packages/media-application" },
+    { "path": "../../packages/story-development" }
   ],
-  "include": ["index.js", "media-ports.ts"]
+  "include": ["index.js", "story-contract.js", "media-ports.ts", "story-ports.ts"]
 }

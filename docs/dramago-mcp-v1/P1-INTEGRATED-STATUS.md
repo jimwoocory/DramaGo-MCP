@@ -1,6 +1,6 @@
 # DramaGo MCP V1 — Integrated relocation status
 
-Status: integrated relocation baseline ready for controlled follow-on development. This is not production release approval.
+Status: historical P1 integrated relocation baseline, not production release approval. The subsequent local P2 [Story Development runtime](../../packages/story-development/README.md) and [context-ref composition adapter](../../apps/dramago-mcp/README.md) have landed. Story generation and planning review are callable when their explicit roles are injected; Workbench, Script/Production execution and external USVDS stage invocation remain unimplemented. The capabilities and verification below record the P1 baseline.
 
 ## Repository ownership
 

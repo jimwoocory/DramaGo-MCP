@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { isStoryTool, validStoryRequest, storyResult } from './story-contract.js'
 
 function deepFreeze(value) {
   if (value && typeof value === 'object') {
@@ -117,11 +118,18 @@ function successResult(value) {
   }
 }
 
-export function createDramaGoMcp({ catalog: suppliedCatalog = loadCatalog(), services = {}, mediaPorts = {}, authorize } = {}) {
+export function createDramaGoMcp({ catalog: suppliedCatalog = loadCatalog(), services = {},
+  storyService = /** @type {import('./story-ports.js').StoryService} */ ({}), mediaPorts = {}, authorize } = {}) {
   const catalog = catalogSnapshot(suppliedCatalog)
   const handlers = new Map()
   for (const [name, method] of Object.entries(factMethods)) {
     if (typeof services[method] === 'function') handlers.set(name, services[method].bind(services))
+  }
+  if (typeof storyService?.writer?.runStoryStep === 'function') {
+    handlers.set('dramago_story_step_run', storyService.writer.runStoryStep.bind(storyService.writer))
+  }
+  if (typeof storyService?.reviewer?.reviewPlanning === 'function') {
+    handlers.set('dramago_planning_review', storyService.reviewer.reviewPlanning.bind(storyService.reviewer))
   }
   const mediaHandlers = new Map()
   for (const name of MEDIA_TOOL_NAMES) {
@@ -144,7 +152,7 @@ export function createDramaGoMcp({ catalog: suppliedCatalog = loadCatalog(), ser
       try { auth = jsonSnapshot(auth) } catch { return errorResult('FORBIDDEN') }
       if (!validAuth(auth) || !auth.scopes.includes(tool.authorization_class)) return errorResult('FORBIDDEN')
       try { input = jsonSnapshot(input) } catch { return errorResult('VALIDATION_ERROR') }
-      if (!validPreconditions(tool, input)) return errorResult('VALIDATION_ERROR')
+      if (!validPreconditions(tool, input) || (isStoryTool(name) && !validStoryRequest(name, input))) return errorResult('VALIDATION_ERROR')
       let authorized = false
       try {
         authorized = typeof authorize === 'function' && await authorize(auth, tool.authorization_class, {
@@ -160,7 +168,8 @@ export function createDramaGoMcp({ catalog: suppliedCatalog = loadCatalog(), ser
         return successResult(value)
       }
       try {
-        return successResult(await handlers.get(name)(auth, input))
+        const value = await handlers.get(name)(auth, input)
+        return successResult(isStoryTool(name) ? storyResult(value) : value)
       } catch (error) {
         return errorResult(error?.code)
       }

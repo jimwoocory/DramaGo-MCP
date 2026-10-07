@@ -29,6 +29,12 @@ importers:
 
   apps/dramago-mcp:
     dependencies:
+      '@xiaoshuren/dramago-application':
+        specifier: workspace:*
+        version: link:../../packages/dramago-application
+      '@xiaoshuren/story-development':
+        specifier: workspace:*
+        version: link:../../packages/story-development
       '@xiaoshuren/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -144,6 +150,12 @@ importers:
       '@aws-sdk/s3-request-presigner':
         specifier: ^3.888.0
         version: 3.1146.0
+
+  packages/story-development:
+    dependencies:
+      '@xiaoshuren/dramago-application':
+        specifier: workspace:*
+        version: link:../dramago-application
 
   packages/workers:
     dependencies:
