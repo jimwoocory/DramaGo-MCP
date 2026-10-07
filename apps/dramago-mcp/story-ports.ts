@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { storyDefinitions as definitions, stableStoryId, exactStoryRef, validStoryRequest, storyResult } from './story-contract.js';
 import { canonicalHash, equal, DomainError } from '@xiaoshuren/dramago-application/domain.js';
-import type { ArtifactRef, ArtifactVersion, ProjectFact, StoryDevelopmentService, StoryRepository, StoryStep } from '@xiaoshuren/story-development';
+import type { ArtifactRef, ArtifactVersion, StoryDevelopmentService, StoryRepository, StoryStep } from '@xiaoshuren/story-development';
 
 export type StoryAuth = Readonly<{
   tenantId: string;
@@ -108,64 +108,27 @@ export function createLocalStoryPorts(service: StoryDevelopmentService, facts: F
         check(object(v.content) && (v.content.schema_version === definitions[role].properties.schema_version.const || v.content.artifact_role === role), 'binding content role mismatch');
       }
     }
-    return { actor, command, context: c, resolve, refs, base: {
-      project_id: command.project_id, workspace_id: project.workspace_id,
-      expected_revision: command.expected_revision, idempotency_key: command.idempotency_key,
-      context_planning_scope: c.planning_scope as ProjectFact['planning_range'],
-      ...(research ? { research_ref: research } : { omit_research: true as const }),
-      executor: { role: c.executor.role as 'writer' | 'reviewer', executor_id: c.executor.executor_id as string },
-    } };
+    // Preflight only: the immutable context and its dependency graph are
+    // interpreted by the authoritative runtime, never translated into old DTOs.
+    return { actor, command };
   }
   return Object.freeze({ writer: Object.freeze({
     async runStoryStep(auth: StoryAuth, input: StoryStepCommand): Promise<StoryRunResult> {
-      const p = await prepare(auth, input, input.step);
-      const step = (p.command as StoryStepCommand).step;
-      // The legacy Bible runtime needs direction, while the public contract binds
-      // foundation. Recover it only from that immutable foundation's provenance.
-      if (step === 'bible') {
-        const pending: ArtifactRef[] = [p.context.bindings.story_foundation];
-        const seen = new Set<string>();
-        const directions: ArtifactRef[] = [];
-        for (let i = 0; i < pending.length; i++) {
-          check(pending.length <= 4096, 'dependency graph exceeds bound');
-          const r = pending[i]; exactRef(r);
-          const key = canonicalHash(r);
-          if (seen.has(key)) continue;
-          seen.add(key);
-          const v = await p.resolve(r);
-          if (object(v.content)) {
-            if (v.kind === 'other_drama' && v.content.artifact_role === 'direction') directions.push(r);
-            if (Object.hasOwn(v.content, 'dependency_refs')) {
-              check(Array.isArray(v.content.dependency_refs), 'dependency refs required');
-              for (const dependency of v.content.dependency_refs) { exactRef(dependency); pending.push(dependency); }
-            }
-          }
-        }
-        check(directions.length === 1, 'one exact foundation direction dependency required');
-        p.refs = unique([...p.refs, directions[0]]);
-      }
-      const result = await service.runStep(p.actor, { ...p.base, step, input_refs: p.refs });
+      const { actor, command } = await prepare(auth, input, input.step);
+      const result = await service.runStep(actor, {
+        project_id: command.project_id, expected_revision: command.expected_revision,
+        idempotency_key: command.idempotency_key, context_ref: command.context_ref,
+        step: (command as StoryStepCommand).step,
+      });
       return storyResult(result);
     },
   }), reviewer: Object.freeze({
     async reviewPlanning(auth: StoryAuth, input: StoryCommand): Promise<StoryRunResult> {
-      const p = await prepare(auth, input, 'planning_review');
-      const b = p.context.bindings;
-      const set = await p.resolve(b.episode_outline_set);
-      const content: unknown = set.content;
-      check(object(content) && Array.isArray(content.ordered_episodes), 'exact episode set required');
-      const ordered = content.ordered_episodes;
-      check(equal(ordered.map((e: unknown) => object(e) ? e.episode_id : null), p.context.planning_scope.ordered_episode_ids), 'complete ordered episode scope required');
-      for (const e of ordered) {
-        keys(e, ['episode_id', 'outline_ref']);
-        const outline = await p.resolve(e.outline_ref);
-        check(outline.kind === 'episode_outline' && outline.episode_id === e.episode_id, 'episode identity mismatch');
-      }
-      const result = await service.planningReview(p.actor, { ...p.base, context_refs: p.refs, planning_scope: {
-        direction_ref: b.direction, story_foundation: b.story_foundation, story_bible: b.story_bible,
-        master_outline: b.master_outline, season_architecture: b.season_architecture,
-        episode_outline_set_ref: b.episode_outline_set, ordered_episodes: ordered as unknown as { episode_id: string; outline_ref: ArtifactRef }[],
-      } });
+      const { actor, command } = await prepare(auth, input, 'planning_review');
+      const result = await service.planningReview(actor, {
+        project_id: command.project_id, expected_revision: command.expected_revision,
+        idempotency_key: command.idempotency_key, context_ref: command.context_ref,
+      });
       return storyResult(result);
     },
   }) });
